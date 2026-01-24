@@ -1,0 +1,10 @@
+file_version: 1
+
+default_server: lobby
+gameplay_server: gameplay
+gameplay_server_num: 1
+
+league_bot_url: "http://localhost:8080"
+league_bot_guild_id: -1
+league_bot_league_name: "GamerLeague"
+league_bot_api_key: "SuperSecretKey"

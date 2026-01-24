@@ -84,7 +84,9 @@ public class SpeedrunShowdownRanked {
                 player.createConnectionRequest(lobbyServer).connect();
             }
             proxy.getScheduler().buildTask(this, () -> {
-                boolean result = gameServer.sendPluginMessage(TO_GP_RESET_SEED, new byte[0]);
+                ByteArrayDataOutput bado = ByteStreams.newDataOutput();
+                bado.writeInt(id);
+                boolean result = gameServer.sendPluginMessage(TO_GP_RESET_SEED, bado.toByteArray());
                 String msg;
                 if (result) {
                     GPServerState state = gpServerStates.get(id);
@@ -117,6 +119,7 @@ public class SpeedrunShowdownRanked {
                 gpss.setQueueId(queueId);
                 gpss.setQueueData(response.getAsJsonObject("queue"));
                 joinQueue(player, gpss);
+                resetGameplaySeed(gpss.getLobbyId(), msg -> player.sendMessage(infoMsg(msg)));
             });
             return;
         }
@@ -178,6 +181,7 @@ public class SpeedrunShowdownRanked {
         }
         ByteArrayDataOutput bado = ByteStreams.newDataOutput();
         bado.writeInt(lobbyId);
+        bado.writeInt(queueId);
         boolean result = gameServer.sendPluginMessage(TO_GP_SET_QUEUE, bado.toByteArray());
         if (!result) {
             logger.error("Failed to tell gameplay server {} to setup.", lobbyId);

@@ -112,4 +112,8 @@ public class GPServerState {
     public void setQueueData(JsonObject queueData) {
         this.queueData = queueData;
     }
+
+    public int getLobbyId() {
+        return id;
+    }
 }

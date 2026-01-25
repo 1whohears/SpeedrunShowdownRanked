@@ -79,11 +79,12 @@ public class SpeedrunShowdownRanked {
         }
         gameServer.sendMessage(infoMsg("This seed is being reset." +
                 " Players will be temporarily moved to the Lobby."));
+        GPServerState state = gpServerStates.get(id);
         ByteArrayDataOutput bado = ByteStreams.newDataOutput();
         bado.writeInt(id);
+        bado.writeInt(state.getQueueId());
         boolean result = gameServer.sendPluginMessage(TO_GP_RESET_SEED, bado.toByteArray());
         if (result) {
-            GPServerState state = gpServerStates.get(id);
             state.setResettingSeed();
             debug.accept("Successfully told gameplay server "+id+" to reset its seed!");
         } else {
@@ -112,10 +113,12 @@ public class SpeedrunShowdownRanked {
                     player.sendMessage(errorMsg(response.get("error").getAsString()));
                     return;
                 }
-                int queueId = response.get("id").getAsInt();
+                JsonObject queue = response.getAsJsonObject("queue");
+                int queueId = queue.get("id").getAsInt();
                 gpss.setQueueId(queueId);
-                gpss.setQueueData(response.getAsJsonObject("queue"));
+                gpss.setQueueData(queue);
                 joinQueue(player, gpss);
+                sendToGameplayServer(player, gpss.id);
                 resetGameplaySeed(gpss.getLobbyId(), msg -> player.sendMessage(infoMsg(msg)));
             });
             return;

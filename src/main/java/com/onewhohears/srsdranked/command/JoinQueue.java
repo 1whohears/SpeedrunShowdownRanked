@@ -23,7 +23,28 @@ public class JoinQueue {
                             plugin.joinCreateQueue(player, QueueType.SOLO);
                             return Command.SINGLE_SUCCESS;
                         })
-                ).build();
+                )
+                .then(BrigadierCommand.literalArgumentBuilder("duos")
+                        .executes(context -> {
+                            if (!(context.getSource() instanceof Player player)) {
+                                context.getSource().sendMessage(errorMsg("User of this command must be a player!"));
+                                return 0;
+                            }
+                            plugin.joinCreateQueue(player, QueueType.DUOS);
+                            return Command.SINGLE_SUCCESS;
+                        })
+                )
+                .then(BrigadierCommand.literalArgumentBuilder("team")
+                        .executes(context -> {
+                            if (!(context.getSource() instanceof Player player)) {
+                                context.getSource().sendMessage(errorMsg("User of this command must be a player!"));
+                                return 0;
+                            }
+                            plugin.joinCreateQueue(player, QueueType.TEAM);
+                            return Command.SINGLE_SUCCESS;
+                        })
+                )
+                .build();
         return new BrigadierCommand(main);
     }
 }

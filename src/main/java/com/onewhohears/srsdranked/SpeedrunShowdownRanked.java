@@ -79,23 +79,20 @@ public class SpeedrunShowdownRanked {
         }
         gameServer.sendMessage(infoMsg("This seed is being reset." +
                 " Players will be temporarily moved to the Lobby."));
-        proxy.getScheduler().buildTask(this, () -> {
-            for (Player player : gameServer.getPlayersConnected()) {
-                player.createConnectionRequest(lobbyServer).connect();
-            }
-            proxy.getScheduler().buildTask(this, () -> {
-                ByteArrayDataOutput bado = ByteStreams.newDataOutput();
-                bado.writeInt(id);
-                boolean result = gameServer.sendPluginMessage(TO_GP_RESET_SEED, bado.toByteArray());
-                String msg;
-                if (result) {
-                    GPServerState state = gpServerStates.get(id);
-                    state.setResettingSeed();
-                    msg = "Successfully told gameplay server "+id+" to reset its seed!";
-                } else msg = "ERROR: Failed to tell gameplay server "+id+" to reset its seed!";
-                debug.accept(msg);
-            }).delay(2, TimeUnit.SECONDS).schedule();
-        }).delay(2, TimeUnit.SECONDS).schedule();
+        ByteArrayDataOutput bado = ByteStreams.newDataOutput();
+        bado.writeInt(id);
+        boolean result = gameServer.sendPluginMessage(TO_GP_RESET_SEED, bado.toByteArray());
+        if (result) {
+            GPServerState state = gpServerStates.get(id);
+            state.setResettingSeed();
+            debug.accept("Successfully told gameplay server "+id+" to reset its seed!");
+        } else {
+            debug.accept("ERROR: Failed to tell gameplay server "+id+" to reset its seed!");
+            return false;
+        }
+        for (Player player : gameServer.getPlayersConnected()) {
+            player.createConnectionRequest(lobbyServer).connect();
+        }
         return true;
     }
 

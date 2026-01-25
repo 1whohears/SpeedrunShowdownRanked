@@ -39,7 +39,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
 import static com.onewhohears.srsdranked.UtilNetApi.getRequestURL;
@@ -179,14 +179,6 @@ public class SpeedrunShowdownRanked {
             logger.error("Could not setup gameplay server {} because it does not exist.", lobbyId);
             return;
         }
-        ByteArrayDataOutput bado = ByteStreams.newDataOutput();
-        bado.writeInt(lobbyId);
-        bado.writeInt(queueId);
-        boolean result = gameServer.sendPluginMessage(TO_GP_SET_QUEUE, bado.toByteArray());
-        if (!result) {
-            logger.error("Failed to tell gameplay server {} to setup.", lobbyId);
-            return;
-        }
         String reqUrl = getRequestURL("/league/queue/state");
         reqUrl += "&queueId="+queueId;
         handleResponseAsync(reqUrl, this, response -> {
@@ -196,11 +188,13 @@ public class SpeedrunShowdownRanked {
             }
             JsonObject queueData = response.getAsJsonObject("queue");
             state.setQueueData(queueData);
-            sendPlayersToServer(queueData, gameServer);
+            sendPlayersToServer(queueData, gameServer, lobbyId, queueId);
         });
     }
 
-    private void sendPlayersToServer(@NotNull JsonObject queueData, @NotNull RegisteredServer gameServer) {
+    private void sendPlayersToServer(@NotNull JsonObject queueData, @NotNull RegisteredServer gameServer,
+                                     int lobbyId, int queueId) {
+        AtomicBoolean send = new AtomicBoolean(false);
         JsonArray members = queueData.getAsJsonArray("members");
         for (int i = 0; i < members.size(); ++i) {
             long id = members.get(i).getAsLong();
@@ -219,6 +213,14 @@ public class SpeedrunShowdownRanked {
                 String mcUUIDStr = extraData.get("mcUUID").getAsString();
                 Optional<Player> player = proxy.getPlayer(UUID.fromString(mcUUIDStr));
                 player.ifPresent(p -> p.createConnectionRequest(gameServer).connect());
+                ByteArrayDataOutput bado = ByteStreams.newDataOutput();
+                bado.writeInt(lobbyId);
+                bado.writeInt(queueId);
+                if (!send.get()) {
+                    if (gameServer.sendPluginMessage(TO_GP_SET_QUEUE, bado.toByteArray()))
+                        send.set(true);
+                    else logger.error("Failed to tell gameplay server {} to setup.", lobbyId);
+                }
             });
         }
     }
@@ -231,6 +233,7 @@ public class SpeedrunShowdownRanked {
 
     @Subscribe
     public void handleResetSeedDone(PluginMessageEvent event) {
+        logger.info("RECEIVED PLUGIN MESSAGE {}", event.toString());
         if (!FROM_GP_STATUS.equals(event.getIdentifier())) {
             return;
         }

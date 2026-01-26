@@ -5,8 +5,10 @@ import com.google.gson.JsonObject;
 import com.google.inject.Inject;
 import com.onewhohears.srsdranked.command.JoinQueue;
 import com.onewhohears.srsdranked.command.ResetSeed;
+import com.onewhohears.srsdranked.command.VetoSeed;
 import com.velocitypowered.api.command.CommandManager;
 import com.velocitypowered.api.event.Subscribe;
+import com.velocitypowered.api.event.player.ServerConnectedEvent;
 import com.velocitypowered.api.event.proxy.ProxyInitializeEvent;
 import com.velocitypowered.api.plugin.Plugin;
 import com.velocitypowered.api.plugin.PluginContainer;
@@ -49,6 +51,15 @@ public class SpeedrunShowdownRanked {
 
     private final Map<Integer, GPServerState> gpServerStates = new HashMap<>();
     private final InternalApiServer internalApiServer = new InternalApiServer(this);
+
+    public boolean vetoSeed(@NotNull Player player, int gameId) {
+        if (!gpServerStates.containsKey(gameId)) {
+            player.sendMessage(errorMsg("Could not veto gameplay server "+gameId+" because that is an invalid id."));
+            return false;
+        }
+        GPServerState state = gpServerStates.get(gameId);
+        return state.vetoSeed(this, player);
+    }
 
     public boolean resetGameplaySeed(int id, Consumer<String> debug) {
         if (!gpServerStates.containsKey(id)) {
@@ -95,7 +106,6 @@ public class SpeedrunShowdownRanked {
                 gpss.setQueueId(queueId);
                 gpss.setQueueData(queue);
                 joinQueue(player, gpss);
-                //sendToGameplayServer(player, gpss.id);
                 resetGameplaySeed(gpss.getLobbyId(), msg -> player.sendMessage(infoMsg(msg)));
             });
             return;
@@ -201,6 +211,12 @@ public class SpeedrunShowdownRanked {
         handleResponseAsync(leagueBotURL, this, responseHandler);
     }
 
+    public void handleContestantResponse(String key, String value, @NotNull Consumer<JsonObject> responseHandler) {
+        String leagueBotURL = getRequestURL("/league/info/contestant");
+        leagueBotURL += "&contestantDataKey="+key+"&contestantDataValue="+value;
+        handleResponseAsync(leagueBotURL, this, responseHandler);
+    }
+
     public void handleStatusResponse(int gameId, String status) {
         GPServerState state = gpServerStates.get(gameId);
         if (state == null) {
@@ -215,6 +231,7 @@ public class SpeedrunShowdownRanked {
         CommandManager cmdMng = proxy.getCommandManager();
         cmdMng.register(cmdMng.metaBuilder("reset_seed").plugin(this).build(), ResetSeed.create(this));
         cmdMng.register(cmdMng.metaBuilder("join_queue").plugin(this).build(), JoinQueue.create(this));
+        cmdMng.register(cmdMng.metaBuilder("veto").plugin(this).build(), VetoSeed.create(this));
 
         try {
             internalApiServer.start();
@@ -249,6 +266,27 @@ public class SpeedrunShowdownRanked {
             container.ifPresent(plugin -> plugin.getExecutorService().shutdown());
         }
         this.logger.info("SRSD Ranked Plugin has initialized!");
+    }
+
+    @Subscribe
+    public void onConnectedToSever(ServerConnectedEvent event) {
+        String serverName = event.getServer().getServerInfo().getName();
+        GPServerState state = getFromServerName(serverName);
+        if (state == null) return;
+        state.onPlayerConnect(event.getPlayer());
+    }
+
+    @Nullable
+    public GPServerState getFromServerName(String serverName) {
+        if (serverName.equals(CONFIG.getString("default_server"))) return null;
+        String gamePrefix = CONFIG.getString("gameplay_server");
+        if (!serverName.startsWith(gamePrefix)) return null;
+        String gameIdStr = serverName.substring(gamePrefix.length());
+        int gameId;
+        try { gameId = Integer.parseInt(gameIdStr); }
+        catch (NumberFormatException e) { return null; }
+        if (!gpServerStates.containsKey(gameId)) return null;
+        return gpServerStates.get(gameId);
     }
 
     public boolean sendToDefaultServer(@NotNull Player player) {

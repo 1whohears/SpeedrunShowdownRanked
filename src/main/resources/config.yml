@@ -16,3 +16,5 @@ velocity_port: 24455
 gameplay_server_api_ports: [
   24456
 ]
+
+veto_time: 15 # seconds

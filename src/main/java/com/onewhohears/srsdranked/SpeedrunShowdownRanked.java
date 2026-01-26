@@ -1,8 +1,5 @@
 package com.onewhohears.srsdranked;
 
-import com.google.common.io.ByteArrayDataInput;
-import com.google.common.io.ByteArrayDataOutput;
-import com.google.common.io.ByteStreams;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.inject.Inject;
@@ -10,15 +7,12 @@ import com.onewhohears.srsdranked.command.JoinQueue;
 import com.onewhohears.srsdranked.command.ResetSeed;
 import com.velocitypowered.api.command.CommandManager;
 import com.velocitypowered.api.event.Subscribe;
-import com.velocitypowered.api.event.connection.PluginMessageEvent;
 import com.velocitypowered.api.event.proxy.ProxyInitializeEvent;
 import com.velocitypowered.api.plugin.Plugin;
 import com.velocitypowered.api.plugin.PluginContainer;
 import com.velocitypowered.api.plugin.annotation.DataDirectory;
 import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.ProxyServer;
-import com.velocitypowered.api.proxy.ServerConnection;
-import com.velocitypowered.api.proxy.messages.MinecraftChannelIdentifier;
 import com.velocitypowered.api.proxy.server.RegisteredServer;
 import dev.dejvokep.boostedyaml.YamlDocument;
 import dev.dejvokep.boostedyaml.dvs.versioning.BasicVersioning;
@@ -39,7 +33,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 import static com.onewhohears.srsdranked.UtilNetApi.getRequestURL;
@@ -50,17 +44,11 @@ public class SpeedrunShowdownRanked {
 
     public static YamlDocument CONFIG;
 
-    public static final MinecraftChannelIdentifier TO_GP_RESET_SEED = MinecraftChannelIdentifier.from(
-            "srsdranked:to_gp/reset_seed");
-    public static final MinecraftChannelIdentifier TO_GP_SET_QUEUE = MinecraftChannelIdentifier.from(
-            "srsdranked:to_gp/set_queue");
-    public static final MinecraftChannelIdentifier FROM_GP_STATUS = MinecraftChannelIdentifier.from(
-            "srsdranked:from_gp/status");
-
     public final Logger logger;
     public final ProxyServer proxy;
 
     private final Map<Integer, GPServerState> gpServerStates = new HashMap<>();
+    private final InternalApiServer internalApiServer = new InternalApiServer(this);
 
     public boolean resetGameplaySeed(int id, Consumer<String> debug) {
         if (!gpServerStates.containsKey(id)) {
@@ -79,18 +67,7 @@ public class SpeedrunShowdownRanked {
         }
         gameServer.sendMessage(infoMsg("This seed is being reset." +
                 " Players will be temporarily moved to the Lobby."));
-        GPServerState state = gpServerStates.get(id);
-        ByteArrayDataOutput bado = ByteStreams.newDataOutput();
-        bado.writeInt(id);
-        bado.writeInt(state.getQueueId());
-        boolean result = gameServer.sendPluginMessage(TO_GP_RESET_SEED, bado.toByteArray());
-        if (result) {
-            state.setResettingSeed();
-            debug.accept("Successfully told gameplay server "+id+" to reset its seed!");
-        } else {
-            debug.accept("ERROR: Failed to tell gameplay server "+id+" to reset its seed!");
-            return false;
-        }
+        internalApiServer.sendResetSeed(id);
         for (Player player : gameServer.getPlayersConnected()) {
             player.createConnectionRequest(lobbyServer).connect();
         }
@@ -118,7 +95,7 @@ public class SpeedrunShowdownRanked {
                 gpss.setQueueId(queueId);
                 gpss.setQueueData(queue);
                 joinQueue(player, gpss);
-                sendToGameplayServer(player, gpss.id);
+                //sendToGameplayServer(player, gpss.id);
                 resetGameplaySeed(gpss.getLobbyId(), msg -> player.sendMessage(infoMsg(msg)));
             });
             return;
@@ -179,6 +156,8 @@ public class SpeedrunShowdownRanked {
             logger.error("Could not setup gameplay server {} because it does not exist.", lobbyId);
             return;
         }
+        logger.info("Setting up Gameplay Server {} for Queue {}", lobbyId, queueId);
+        internalApiServer.sendSetQueue(lobbyId, queueId);
         String reqUrl = getRequestURL("/league/queue/state");
         reqUrl += "&queueId="+queueId;
         handleResponseAsync(reqUrl, this, response -> {
@@ -188,16 +167,15 @@ public class SpeedrunShowdownRanked {
             }
             JsonObject queueData = response.getAsJsonObject("queue");
             state.setQueueData(queueData);
-            sendPlayersToServer(queueData, gameServer, lobbyId, queueId);
+            sendPlayersToServer(queueData, gameServer);
         });
     }
 
-    private void sendPlayersToServer(@NotNull JsonObject queueData, @NotNull RegisteredServer gameServer,
-                                     int lobbyId, int queueId) {
-        AtomicBoolean send = new AtomicBoolean(false);
+    private void sendPlayersToServer(@NotNull JsonObject queueData, @NotNull RegisteredServer gameServer) {
         JsonArray members = queueData.getAsJsonArray("members");
         for (int i = 0; i < members.size(); ++i) {
-            long id = members.get(i).getAsLong();
+            JsonObject member = members.get(i).getAsJsonObject();
+            long id = member.get("id").getAsLong();
             handleContestantResponse(id, res -> {
                 if (res.has("error")) {
                     logger.error(res.get("error").getAsString());
@@ -213,14 +191,6 @@ public class SpeedrunShowdownRanked {
                 String mcUUIDStr = extraData.get("mcUUID").getAsString();
                 Optional<Player> player = proxy.getPlayer(UUID.fromString(mcUUIDStr));
                 player.ifPresent(p -> p.createConnectionRequest(gameServer).connect());
-                ByteArrayDataOutput bado = ByteStreams.newDataOutput();
-                bado.writeInt(lobbyId);
-                bado.writeInt(queueId);
-                if (!send.get()) {
-                    if (gameServer.sendPluginMessage(TO_GP_SET_QUEUE, bado.toByteArray()))
-                        send.set(true);
-                    else logger.error("Failed to tell gameplay server {} to setup.", lobbyId);
-                }
             });
         }
     }
@@ -231,22 +201,10 @@ public class SpeedrunShowdownRanked {
         handleResponseAsync(leagueBotURL, this, responseHandler);
     }
 
-    @Subscribe
-    public void handleResetSeedDone(PluginMessageEvent event) {
-        logger.info("RECEIVED PLUGIN MESSAGE {}", event.toString());
-        if (!FROM_GP_STATUS.equals(event.getIdentifier())) {
-            return;
-        }
-        event.setResult(PluginMessageEvent.ForwardResult.handled());
-        if (!(event.getSource() instanceof ServerConnection)) {
-            return;
-        }
-        ByteArrayDataInput in = ByteStreams.newDataInput(event.getData());
-        int id = in.readInt();
-        String status = in.readUTF();
-        GPServerState state = gpServerStates.get(id);
+    public void handleStatusResponse(int gameId, String status) {
+        GPServerState state = gpServerStates.get(gameId);
         if (state == null) {
-            logger.error("Received enable message from gameplay server with invalid id {}", id);
+            logger.error("Received enable message from gameplay server with invalid id {}", gameId);
             return;
         }
         state.readStatus(status, this);
@@ -254,13 +212,19 @@ public class SpeedrunShowdownRanked {
 
     @Subscribe
     public void onProxyInitialization(ProxyInitializeEvent event) {
-        proxy.getChannelRegistrar().register(TO_GP_RESET_SEED);
-        proxy.getChannelRegistrar().register(TO_GP_SET_QUEUE);
-        proxy.getChannelRegistrar().register(FROM_GP_STATUS);
-
         CommandManager cmdMng = proxy.getCommandManager();
         cmdMng.register(cmdMng.metaBuilder("reset_seed").plugin(this).build(), ResetSeed.create(this));
         cmdMng.register(cmdMng.metaBuilder("join_queue").plugin(this).build(), JoinQueue.create(this));
+
+        try {
+            internalApiServer.start();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        proxy.getScheduler().buildTask(this, () ->
+            gpServerStates.forEach((id, state) -> state.updateState(this))
+        ).repeat(2, TimeUnit.SECONDS).schedule();
     }
 
     @Inject

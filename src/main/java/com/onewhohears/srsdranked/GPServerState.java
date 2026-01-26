@@ -60,19 +60,33 @@ public class GPServerState {
     }
 
     public void readStatus(@NotNull String status, @NotNull SpeedrunShowdownRanked plugin) {
-        boolean wasResettingSeed = isResettingSeed();
+        boolean wasOffline = isResettingSeed();
         switch (status) {
-            case "OFFLINE": setOffline();
-            case "STARTING": setOffline();
-            case "READY": setOnline();
-            case "IN_PROGRESS": setGameInProgress();
-            case "FINISHED": setGameFinished();
-            case "STOPPING": setOffline();
-            default: setOffline();
+            case "READY": {
+                setOnline();
+                break;
+            }
+            case "RESETTING_SEED": {
+                setResettingSeed();
+                break;
+            }
+            case "IN_PROGRESS": {
+                setGameInProgress();
+                break;
+            }
+            case "FINISHED": {
+                setGameFinished();
+                break;
+            }
+            default: {
+                setOffline();
+                break;
+            }
         }
-        if (wasResettingSeed && this.status == GPServerStatus.ONLINE && queueId != -1) {
+        if (wasOffline && this.status == GPServerStatus.ONLINE && queueId != -1) {
             plugin.setupGameplayLobby(id, queueId);
         }
+        plugin.logger.info("Received Status {} for Game Server {} with Queue {}", this.status.name(), id, queueId);
     }
 
     private void setOffline() {

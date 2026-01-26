@@ -8,3 +8,11 @@ league_bot_url: "http://localhost:8080"
 league_bot_guild_id: -1
 league_bot_league_name: "GamerLeague"
 league_bot_api_key: "SuperSecretKey"
+
+pterodactyl_api_key: bruh
+
+velocity_ip: http://0.0.0.0
+velocity_port: 24455
+gameplay_server_api_ports: [
+  24456
+]

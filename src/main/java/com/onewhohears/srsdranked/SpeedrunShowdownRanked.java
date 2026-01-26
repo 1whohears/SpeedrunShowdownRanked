@@ -67,10 +67,10 @@ public class SpeedrunShowdownRanked {
         }
         gameServer.sendMessage(infoMsg("This seed is being reset." +
                 " Players will be temporarily moved to the Lobby."));
-        internalApiServer.sendResetSeed(id);
         for (Player player : gameServer.getPlayersConnected()) {
             player.createConnectionRequest(lobbyServer).connect();
         }
+        internalApiServer.sendResetSeed(id);
         return true;
     }
 

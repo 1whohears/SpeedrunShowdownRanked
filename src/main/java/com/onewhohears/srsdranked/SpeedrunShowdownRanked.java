@@ -80,8 +80,10 @@ public class SpeedrunShowdownRanked {
         }
         gameServer.sendMessage(infoMsg("This seed is being reset." +
                 " Players will be temporarily moved to the Lobby."));
+        GPServerState state = gpServerStates.get(id);
         for (Player player : gameServer.getPlayersConnected()) {
             player.createConnectionRequest(lobbyServer).connect();
+            state.addToRejoinList(player);
         }
         internalApiServer.sendResetSeed(id);
         return true;
@@ -175,19 +177,22 @@ public class SpeedrunShowdownRanked {
             return;
         }
         logger.info("Setting up Gameplay Server {} for Queue {}", lobbyId, queueId);
-        // TODO send players back to gameplay lobby if queueId == -1
         internalApiServer.sendSetQueue(lobbyId, queueId);
-        String reqUrl = getRequestURL("/league/queue/state");
-        reqUrl += "&queueId="+queueId;
-        handleResponseAsync(reqUrl, this, response -> {
-            if (response.has("error")) {
-                logger.error(response.get("error").getAsString());
-                return;
-            }
-            JsonObject queueData = response.getAsJsonObject("queue");
-            state.setQueueData(queueData);
-            sendPlayersToServer(queueData, gameServer);
-        });
+        if (queueId != -1) {
+            String reqUrl = getRequestURL("/league/queue/state");
+            reqUrl += "&queueId=" + queueId;
+            handleResponseAsync(reqUrl, this, response -> {
+                if (response.has("error")) {
+                    logger.error(response.get("error").getAsString());
+                    return;
+                }
+                JsonObject queueData = response.getAsJsonObject("queue");
+                state.setQueueData(queueData);
+                sendPlayersToServer(queueData, gameServer);
+            });
+        } else {
+            state.resolveRejoinList(gameServer);
+        }
     }
 
     private void sendPlayersToServer(@NotNull JsonObject queueData, @NotNull RegisteredServer gameServer) {

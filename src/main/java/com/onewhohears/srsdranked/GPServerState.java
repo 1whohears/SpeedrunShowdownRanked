@@ -18,6 +18,7 @@ public class GPServerState {
 
     private final Map<UUID,Long> loginTimes = new HashMap<>();
     private final List<Set<UUID>> vetos = new ArrayList<>();
+    private final Set<Player> rejoinPlayers = new HashSet<>();
 
     private GPServerStatus status = GPServerStatus.OFFLINE;
     private int queueId = -1;
@@ -27,6 +28,15 @@ public class GPServerState {
 
     public GPServerState(int id) {
         this.id = id;
+    }
+
+    public void addToRejoinList(@NotNull Player player) {
+        rejoinPlayers.add(player);
+    }
+
+    public void resolveRejoinList(@NotNull RegisteredServer gameServer) {
+        rejoinPlayers.forEach(player -> player.createConnectionRequest(gameServer).connect());
+        rejoinPlayers.clear();
     }
 
     public boolean checkIn(@NotNull SpeedrunShowdownRanked plugin, @NotNull Player player) {
@@ -229,7 +239,7 @@ public class GPServerState {
                 break;
             }
         }
-        if (wasOffline && this.status == GPServerStatus.ONLINE && queueId != -1) {
+        if (wasOffline && this.status == GPServerStatus.ONLINE) {
             plugin.setupGameplayLobby(id, queueId);
         }
         plugin.logger.info("Received Status {} for Game Server {} with Queue {}", this.status.name(), id, queueId);

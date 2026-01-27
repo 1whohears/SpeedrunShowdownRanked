@@ -31,15 +31,18 @@ public class GPServerState {
 
     private void handlePlayerVeto(@NotNull SpeedrunShowdownRanked plugin, @NotNull Player player) {
         int highestTier = findHighestTier(player);
-        registerVeto(player, highestTier+1);
+        while (!registerVeto(player, highestTier+1)) {
+            ++highestTier;
+        };
+        int TIER = highestTier+1;
         if (vetos.get(highestTier).size() % (highestTier + 1) != 0) {
             player.getCurrentServer().ifPresent(server -> server.getServer().sendMessage(infoMsg(
-                    player.getUsername()+" is requesting someone join them in a Tier "+(highestTier+1)+" Veto!"
+                    player.getUsername()+" is requesting someone join them in a Tier "+TIER+" Veto!"
             )));
             return;
         }
         player.getCurrentServer().ifPresent(server -> server.getServer().sendMessage(infoMsg(
-                player.getUsername()+" is using their Tier "+(highestTier+1)+" Veto to Reset the Seed!"
+                player.getUsername()+" is using their Tier "+TIER+" Veto to Reset the Seed!"
         )));
         plugin.resetGameplaySeed(id, msg -> player.sendMessage(errorMsg(msg)));
         loginTimes.clear();
@@ -62,10 +65,12 @@ public class GPServerState {
             player.sendMessage(errorMsg("Cannot Veto. This Lobby does not have a Queue ID set."));
             return false;
         }
-        long vetoTime = CONFIG.getLong("veto_time") * 1000;
-        long loginTime = loginTimes.computeIfAbsent(player.identity().uuid(), uuid -> System.currentTimeMillis());
-        if (System.currentTimeMillis() - loginTime > vetoTime) {
-            player.sendMessage(errorMsg("You must Veto the seed with "+vetoTime+" seconds after logging in!"));
+        long vetoTime = CONFIG.getLong("veto_time");
+        long loginTime = loginTimes.computeIfAbsent(player.getUniqueId(), uuid -> System.currentTimeMillis());
+        long diff = System.currentTimeMillis() - loginTime;
+        if (diff > vetoTime * 1000) {
+            player.sendMessage(errorMsg("You must Veto the seed with "+vetoTime+" seconds after logging in!" +
+                    " You logged in "+((int)diff/1000)+" seconds ago!"));
             return false;
         }
         String reqUrl = getRequestURL("/league/queue/state")+"&queueId="+queueId;
@@ -80,7 +85,7 @@ public class GPServerState {
                 player.sendMessage(errorMsg("Can only veto the seed during PREGAME"));
                 return;
             }
-            plugin.handleContestantResponse("mcUUID", player.identity().uuid().toString(), res -> {
+            plugin.handleContestantResponse("mcUUID", player.getUniqueId().toString(), res -> {
                 if (res.has("error")) {
                     player.sendMessage(errorMsg(res.get("error").getAsString()));
                     return;
@@ -136,6 +141,7 @@ public class GPServerState {
 
     private void resetQueue() {
         queueId = -1;
+        queueType = QueueType.NONE;
         queueState = QueueState.NONE;
         queueData = new JsonObject();
         loginTimes.clear();
@@ -143,7 +149,7 @@ public class GPServerState {
     }
 
     public void onPlayerConnect(@NotNull Player player) {
-        loginTimes.putIfAbsent(player.identity().uuid(), System.currentTimeMillis());
+        loginTimes.putIfAbsent(player.getUniqueId(), System.currentTimeMillis());
     }
 
     public boolean canAnyPlayerJoin() {

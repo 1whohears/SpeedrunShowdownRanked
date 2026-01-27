@@ -3,7 +3,6 @@ package com.onewhohears.srsdranked;
 import com.google.gson.JsonObject;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
-import com.velocitypowered.api.proxy.server.RegisteredServer;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextColor;
 import org.jetbrains.annotations.NotNull;
@@ -51,13 +50,42 @@ public class InternalApiServer {
 
         server = HttpServer.create(new InetSocketAddress(port), 0);
 
-        server.createContext("/status", this::handleStatus);
         server.createContext("/ping", this::handlePing);
+        server.createContext("/status", this::handleStatus);
+        server.createContext("/reset_seed", this::handleResetSeed);
 
         server.setExecutor(null);
         server.start();
 
         plugin.logger.info("API started on :{}", port);
+    }
+
+    private void handleResetSeed(HttpExchange ex) throws IOException {
+        String key = ex.getRequestHeaders().getFirst("X-Auth");
+        if (!key.equals(CONFIG.getString("pterodactyl_api_key"))) {
+            plugin.logger.warn("Reset Failed Cause Bad Key {}", key);
+            ex.sendResponseHeaders(401, -1);
+            return;
+        }
+        if (!ex.getRequestMethod().equalsIgnoreCase("POST")) {
+            ex.sendResponseHeaders(405, -1);
+            return;
+        }
+
+        String body = new String(ex.getRequestBody().readAllBytes());
+        JsonObject response = GSON.fromJson(body, JsonObject.class);
+
+        if (!response.has("gameId")) {
+            reply(ex, 400, "Missing gameId");
+            return;
+        }
+        int gameId = response.get("gameId").getAsInt();
+
+        plugin.proxy.getScheduler().buildTask(plugin,
+                () -> plugin.resetGameplaySeed(gameId, plugin.logger::info)
+        ).schedule();
+
+        reply(ex, 200, "{\"result\":\"Resetting seed for Game "+gameId+"\"}");
     }
 
     private void handlePing(HttpExchange ex) throws IOException {
@@ -67,7 +95,6 @@ public class InternalApiServer {
     private void handleStatus(HttpExchange ex) throws IOException {
         String key = ex.getRequestHeaders().getFirst("X-Auth");
         if (!key.equals(CONFIG.getString("pterodactyl_api_key"))) {
-            plugin.logger.warn("Reset Failed Cause Bad Key {}", key);
             ex.sendResponseHeaders(401, -1);
             return;
         }

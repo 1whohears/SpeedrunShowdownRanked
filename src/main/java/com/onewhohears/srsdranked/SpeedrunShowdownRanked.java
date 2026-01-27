@@ -119,7 +119,7 @@ public class SpeedrunShowdownRanked {
 
     private void joinQueue(@NotNull Player player, @NotNull GPServerState state) {
         String reqUrl = getRequestURL("/league/queue/join");
-        reqUrl += "&mcUUID="+player.identity().uuid()+"&queueId="+state.getQueueId();
+        reqUrl += "&mcUUID="+player.getUniqueId()+"&queueId="+state.getQueueId();
         handleResponseAsync(reqUrl, this, response -> {
             if (response.has("error")) {
                 player.sendMessage(errorMsg(response.get("error").getAsString()));

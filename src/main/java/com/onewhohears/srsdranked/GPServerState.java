@@ -39,7 +39,7 @@ public class GPServerState {
             }
             setQueueData(response.getAsJsonObject("queue"));
             String result = response.get("result").getAsString();
-            player.sendMessage(infoMsg("Join Queue "+queueId+" Result: "+result));
+            player.sendMessage(infoMsg("Check In Queue "+queueId+" Result: "+result));
             if (isPreGame() && isOnline() && (result.equals("SUCCESS") || result.equals("ALREADY_JOINED"))) {
                 if (!plugin.sendToGameplayServer(player, getLobbyId())) {
                     player.sendMessage(errorMsg("Could not send you to the game play server: "+getStatus()));
@@ -66,6 +66,7 @@ public class GPServerState {
         )));
         plugin.resetGameplaySeed(id, msg -> player.sendMessage(errorMsg(msg)));
         loginTimes.clear();
+        // TODO doesn't allow for endless consensus vetos
     }
 
     private boolean registerVeto(@NotNull Player player, int tier) {
@@ -270,7 +271,9 @@ public class GPServerState {
 
     public void setQueueData(JsonObject queueData) {
         this.queueData = queueData;
-        queueState = readQueueState(queueData.get("queueState").getAsString());
+        QueueState next = readQueueState(queueData.get("queueState").getAsString());
+        if (queueState != QueueState.PREGAME && next == QueueState.PREGAME) loginTimes.clear();
+        queueState = next;
         if (queueState == QueueState.CLOSED) resetQueue();
     }
 

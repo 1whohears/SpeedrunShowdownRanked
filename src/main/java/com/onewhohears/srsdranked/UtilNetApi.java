@@ -80,10 +80,11 @@ public class UtilNetApi {
             con.disconnect();
         } catch (IOException e) {
             plugin.proxy.getScheduler().buildTask(plugin, () -> {
-                Component msg = Component.text("Failed: " + e.getMessage())
+                Component msg = Component.text("FAILED: " + e.getMessage())
                         .color(TextColor.color(0xFF0000));
                 if (sender != null) sender.sendMessage(msg);
                 else plugin.proxy.sendMessage(msg);
+                plugin.logger.error("{} | {}", requestURL, e.getMessage());
                 e.printStackTrace();
             }).schedule();
             return null;

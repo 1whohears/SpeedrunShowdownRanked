@@ -274,7 +274,7 @@ public class GPServerState {
         QueueState next = readQueueState(queueData.get("queueState").getAsString());
         if (queueState != QueueState.PREGAME && next == QueueState.PREGAME) loginTimes.clear();
         queueState = next;
-        if (queueState == QueueState.CLOSED) resetQueue();
+        if (queueState == QueueState.CLOSED && !isGameInProgress()) resetQueue();
     }
 
     public int getLobbyId() {

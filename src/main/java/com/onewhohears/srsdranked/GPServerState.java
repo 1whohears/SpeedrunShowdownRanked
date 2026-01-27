@@ -29,6 +29,26 @@ public class GPServerState {
         this.id = id;
     }
 
+    public boolean checkIn(@NotNull SpeedrunShowdownRanked plugin, @NotNull Player player) {
+        String reqUrl = getRequestURL("/league/queue/check_in");
+        reqUrl += "&mcUUID="+player.getUniqueId()+"&queueId="+queueId;
+        handleResponseAsync(reqUrl, plugin, response -> {
+            if (response.has("error")) {
+                player.sendMessage(errorMsg(response.get("error").getAsString()));
+                return;
+            }
+            setQueueData(response.getAsJsonObject("queue"));
+            String result = response.get("result").getAsString();
+            player.sendMessage(infoMsg("Join Queue "+queueId+" Result: "+result));
+            if (isPreGame() && isOnline() && (result.equals("SUCCESS") || result.equals("ALREADY_JOINED"))) {
+                if (!plugin.sendToGameplayServer(player, getLobbyId())) {
+                    player.sendMessage(errorMsg("Could not send you to the game play server: "+getStatus()));
+                }
+            }
+        });
+        return true;
+    }
+
     private void handlePlayerVeto(@NotNull SpeedrunShowdownRanked plugin, @NotNull Player player) {
         int highestTier = findHighestTier(player);
         while (!registerVeto(player, highestTier+1)) {
@@ -274,5 +294,13 @@ public class GPServerState {
 
     public QueueState getQueueState() {
         return queueState;
+    }
+
+    public boolean isPreGame() {
+        return queueState == QueueState.PREGAME || queueState == QueueState.PREGAME_SUBS;
+    }
+
+    public boolean isOnline() {
+        return status == GPServerStatus.ONLINE;
     }
 }

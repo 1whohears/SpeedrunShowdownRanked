@@ -3,6 +3,7 @@ package com.onewhohears.srsdranked;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.inject.Inject;
+import com.onewhohears.srsdranked.command.CheckInQueue;
 import com.onewhohears.srsdranked.command.JoinQueue;
 import com.onewhohears.srsdranked.command.ResetSeed;
 import com.onewhohears.srsdranked.command.VetoSeed;
@@ -105,8 +106,8 @@ public class SpeedrunShowdownRanked {
                 int queueId = queue.get("id").getAsInt();
                 gpss.setQueueId(queueId);
                 gpss.setQueueData(queue);
-                joinQueue(player, gpss);
                 resetGameplaySeed(gpss.getLobbyId(), msg -> player.sendMessage(infoMsg(msg)));
+                joinQueue(player, gpss);
             });
             return;
         }
@@ -126,7 +127,13 @@ public class SpeedrunShowdownRanked {
                 return;
             }
             state.setQueueData(response.getAsJsonObject("queue"));
-            player.sendMessage(infoMsg("Join Queue "+state.getQueueId()+" Result: "+response.get("result").getAsString()));
+            String result = response.get("result").getAsString();
+            player.sendMessage(infoMsg("Join Queue "+state.getQueueId()+" Result: "+result));
+            if (state.isPreGame() && state.isOnline() && (result.equals("SUCCESS") || result.equals("ALREADY_JOINED"))) {
+                if (!sendToGameplayServer(player, state.getLobbyId())) {
+                    player.sendMessage(errorMsg("Could not send you to the game play server: "+state.getStatus()));
+                }
+            }
         });
     }
 
@@ -231,6 +238,7 @@ public class SpeedrunShowdownRanked {
         CommandManager cmdMng = proxy.getCommandManager();
         cmdMng.register(cmdMng.metaBuilder("reset_seed").plugin(this).build(), ResetSeed.create(this));
         cmdMng.register(cmdMng.metaBuilder("join_queue").plugin(this).build(), JoinQueue.create(this));
+        cmdMng.register(cmdMng.metaBuilder("check_in_queue").plugin(this).build(), CheckInQueue.create(this));
         cmdMng.register(cmdMng.metaBuilder("veto").plugin(this).build(), VetoSeed.create(this));
 
         try {
@@ -287,6 +295,13 @@ public class SpeedrunShowdownRanked {
         catch (NumberFormatException e) { return null; }
         if (!gpServerStates.containsKey(gameId)) return null;
         return gpServerStates.get(gameId);
+    }
+
+    @Nullable
+    public GPServerState getServerStateByQueueId(int queueId) {
+        return gpServerStates.values().stream()
+                .filter(state -> state.getQueueId() == queueId)
+                .findFirst().orElse(null);
     }
 
     public boolean sendToDefaultServer(@NotNull Player player) {

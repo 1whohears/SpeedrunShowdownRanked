@@ -175,6 +175,7 @@ public class SpeedrunShowdownRanked {
             return;
         }
         logger.info("Setting up Gameplay Server {} for Queue {}", lobbyId, queueId);
+        // TODO send players back to gameplay lobby if queueId == -1
         internalApiServer.sendSetQueue(lobbyId, queueId);
         String reqUrl = getRequestURL("/league/queue/state");
         reqUrl += "&queueId="+queueId;

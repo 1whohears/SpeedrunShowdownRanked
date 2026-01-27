@@ -9,6 +9,7 @@ import com.onewhohears.srsdranked.command.ResetSeed;
 import com.onewhohears.srsdranked.command.VetoSeed;
 import com.velocitypowered.api.command.CommandManager;
 import com.velocitypowered.api.event.Subscribe;
+import com.velocitypowered.api.event.connection.DisconnectEvent;
 import com.velocitypowered.api.event.player.ServerConnectedEvent;
 import com.velocitypowered.api.event.proxy.ProxyInitializeEvent;
 import com.velocitypowered.api.plugin.Plugin;
@@ -282,6 +283,12 @@ public class SpeedrunShowdownRanked {
         GPServerState state = getFromServerName(serverName);
         if (state == null) return;
         state.onPlayerConnect(event.getPlayer());
+        // TODO check out on going to lobby server
+    }
+
+    @Subscribe
+    public void onDisconnect(DisconnectEvent event) {
+        // TODO check out on disconnect
     }
 
     @Nullable

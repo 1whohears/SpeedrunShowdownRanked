@@ -289,12 +289,14 @@ public class SpeedrunShowdownRanked {
         GPServerState state = getFromServerName(serverName);
         if (state == null) return;
         state.onPlayerConnect(event.getPlayer());
-        // TODO check out on going to lobby server
+        // TODO feed the player into the same on disconnect script if they go to the lobby server or the wrong gameplay server
+        // TODO if they join the lobby server and are in the middle of a match, send them back to the gameplay server
     }
 
     @Subscribe
     public void onDisconnect(DisconnectEvent event) {
         // TODO check out on disconnect
+        // TODO if disconnect in the middle of a match, they have some timeout time to reconnect, otherwise the match gets canceled and they loose elo
     }
 
     @Nullable

@@ -177,6 +177,7 @@ public class GPServerState {
         queueData = new JsonObject();
         loginTimes.clear();
         vetos.clear();
+        rejoinPlayers.clear();
     }
 
     public void onPlayerConnect(@NotNull Player player) {

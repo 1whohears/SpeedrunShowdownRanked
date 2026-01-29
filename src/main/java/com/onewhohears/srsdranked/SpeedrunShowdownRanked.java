@@ -294,8 +294,9 @@ public class SpeedrunShowdownRanked {
         if (stateFromList == null) return;
         String serverName = event.getServer().getServerInfo().getName();
         GPServerState stateFromName = getFromServerName(serverName);
-        if (stateFromName == null || stateFromList.getLobbyId() != stateFromName.getLobbyId()) {
-            stateFromList.onPlayerDisconnect(event.getPlayer());
+        if ((stateFromName == null && !stateFromList.isResettingSeed()) ||
+                (stateFromName != null && stateFromList.getLobbyId() != stateFromName.getLobbyId())) {
+            stateFromList.onPlayerDisconnect(this, event.getPlayer());
             sendToGameplayServer(event.getPlayer(), stateFromList.getLobbyId());
             return;
         }
@@ -306,7 +307,7 @@ public class SpeedrunShowdownRanked {
     public void onDisconnect(DisconnectEvent event) {
         GPServerState state = getFromWatchList(event.getPlayer());
         if (state == null) return;
-        state.onPlayerDisconnect(event.getPlayer());
+        state.onPlayerDisconnect(this, event.getPlayer());
     }
 
     @Nullable

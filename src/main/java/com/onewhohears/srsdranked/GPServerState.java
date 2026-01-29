@@ -241,9 +241,10 @@ public class GPServerState {
         loginTimes.putIfAbsent(player.getUniqueId(), System.currentTimeMillis());
     }
 
-    public void onPlayerDisconnect(@NotNull Player player) {
+    public void onPlayerDisconnect(@NotNull SpeedrunShowdownRanked plugin, @NotNull Player player) {
         if (!isOnWatchList(player)) return;
         disconnectTimes.put(player.getUniqueId(), System.currentTimeMillis());
+        checkOut(plugin, player);
     }
 
     private void tickTotalDisconnectTimes(@NotNull SpeedrunShowdownRanked plugin) {

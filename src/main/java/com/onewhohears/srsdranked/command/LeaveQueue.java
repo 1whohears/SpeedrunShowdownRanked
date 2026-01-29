@@ -27,7 +27,7 @@ public class LeaveQueue {
                                 context.getSource().sendMessage(errorMsg("There is no Queue with ID "+id));
                                 return 0;
                             }
-                            if (state.checkOut(plugin, player)) return Command.SINGLE_SUCCESS;
+                            if (state.leave(plugin, player)) return Command.SINGLE_SUCCESS;
                             return 0;
                         })).build();
         return new BrigadierCommand(main);

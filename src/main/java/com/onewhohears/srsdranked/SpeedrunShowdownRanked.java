@@ -185,14 +185,15 @@ public class SpeedrunShowdownRanked {
                 }
                 JsonObject queueData = response.getAsJsonObject("queue");
                 state.setQueueData(queueData);
-                sendPlayersToServer(queueData, gameServer);
+                sendPlayersToServer(queueData, gameServer, state);
             });
         } else {
             state.resolveRejoinList(gameServer);
         }
     }
 
-    private void sendPlayersToServer(@NotNull JsonObject queueData, @NotNull RegisteredServer gameServer) {
+    private void sendPlayersToServer(@NotNull JsonObject queueData, @NotNull RegisteredServer gameServer,
+                                     @NotNull GPServerState state) {
         JsonArray members = queueData.getAsJsonArray("members");
         for (int i = 0; i < members.size(); ++i) {
             JsonObject member = members.get(i).getAsJsonObject();
@@ -210,6 +211,7 @@ public class SpeedrunShowdownRanked {
                     return;
                 }
                 String mcUUIDStr = extraData.get("mcUUID").getAsString();
+                state.addUuidToWatchList(mcUUIDStr);
                 Optional<Player> player = proxy.getPlayer(UUID.fromString(mcUUIDStr));
                 player.ifPresent(p -> {
                     p.createConnectionRequest(gameServer).connect();
@@ -288,23 +290,31 @@ public class SpeedrunShowdownRanked {
 
     @Subscribe
     public void onConnectedToSever(ServerConnectedEvent event) {
+        GPServerState stateFromList = getFromWatchList(event.getPlayer());
+        if (stateFromList == null) return;
         String serverName = event.getServer().getServerInfo().getName();
-        GPServerState state = getFromServerName(serverName);
-        if (state == null) return;
-        state.onPlayerConnect(event.getPlayer());
-        // TODO feed the player into the same on disconnect script if they go to the lobby server or the wrong gameplay server
-        // TODO if they join the lobby server and are in the middle of a match, send them back to the gameplay server
+        GPServerState stateFromName = getFromServerName(serverName);
+        if (stateFromName == null || stateFromList.getLobbyId() != stateFromName.getLobbyId()) {
+            stateFromList.onPlayerDisconnect(event.getPlayer());
+            sendToGameplayServer(event.getPlayer(), stateFromList.getLobbyId());
+            return;
+        }
+        stateFromList.onPlayerConnect(event.getPlayer());
     }
 
     @Subscribe
     public void onDisconnect(DisconnectEvent event) {
-        if (event.getPlayer().getCurrentServer().isEmpty()) return;
-        String serverName = event.getPlayer().getCurrentServer().get().getServerInfo().getName();
-        GPServerState state = getFromServerName(serverName);
+        GPServerState state = getFromWatchList(event.getPlayer());
         if (state == null) return;
+        state.onPlayerDisconnect(event.getPlayer());
+    }
 
-        // TODO check out on disconnect
-        // TODO if disconnect in the middle of a match, they have some timeout time to reconnect, otherwise the match gets canceled and they loose elo
+    @Nullable
+    public GPServerState getFromWatchList(@NotNull Player player) {
+        for (GPServerState state : gpServerStates.values())
+            if (state.isOnWatchList(player))
+                return state;
+        return null;
     }
 
     @Nullable
@@ -354,5 +364,9 @@ public class SpeedrunShowdownRanked {
     public RegisteredServer getGameplayServer(int id) {
         Optional<RegisteredServer> server = proxy.getServer(CONFIG.getString("gameplay_server")+id);
         return server.orElse(null);
+    }
+
+    public InternalApiServer getInternalApiServer() {
+        return internalApiServer;
     }
 }

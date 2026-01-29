@@ -18,3 +18,4 @@ gameplay_server_api_ports: [
 ]
 
 veto_time: 15 # seconds
+disconnect_timeout: 60 # seconds

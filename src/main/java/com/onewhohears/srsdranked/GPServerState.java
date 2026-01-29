@@ -5,6 +5,7 @@ import com.google.gson.JsonObject;
 import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.server.RegisteredServer;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 
@@ -17,8 +18,11 @@ public class GPServerState {
     public final int id;
 
     private final Map<UUID,Long> loginTimes = new HashMap<>();
+    private final Map<UUID,Long> disconnectTimes = new HashMap<>();
+    private final Map<UUID,Long> totalDisconnectedTime = new HashMap<>();
     private final List<Set<UUID>> vetos = new ArrayList<>();
     private final Set<Player> rejoinPlayers = new HashSet<>();
+    private final Set<String> queuePlayers = new HashSet<>();
 
     private GPServerStatus status = GPServerStatus.OFFLINE;
     private int queueId = -1;
@@ -26,6 +30,7 @@ public class GPServerState {
     private QueueState queueState = QueueState.NONE;
     private JsonObject queueData = new JsonObject();
     private int numQueueMembers = 0;
+    private long prevTime = 0;
 
     public GPServerState(int id) {
         this.id = id;
@@ -204,6 +209,19 @@ public class GPServerState {
                if (error != null) setOffline();
             });
         }
+        tickTotalDisconnectTimes(plugin);
+    }
+
+    public void cancelMatch(@NotNull SpeedrunShowdownRanked plugin, @Nullable UUID disconnectedUUID) {
+        RegisteredServer server = plugin.getGameplayServer(getLobbyId());
+        if (server == null) return;
+        plugin.getInternalApiServer().sendCancelSet(getLobbyId());
+        server.sendMessage(infoMsg("The match has been canceled!"));
+        if (disconnectedUUID == null) {
+
+        }
+        resetQueue();
+        // TODO cancel the match and reduce the elo of the player that disconnected
     }
 
     private void resetQueue() {
@@ -214,10 +232,40 @@ public class GPServerState {
         loginTimes.clear();
         vetos.clear();
         rejoinPlayers.clear();
+        queuePlayers.clear();
+        disconnectTimes.clear();
+        totalDisconnectedTime.clear();
     }
 
     public void onPlayerConnect(@NotNull Player player) {
         loginTimes.putIfAbsent(player.getUniqueId(), System.currentTimeMillis());
+    }
+
+    public void onPlayerDisconnect(@NotNull Player player) {
+        if (!isOnWatchList(player)) return;
+        disconnectTimes.put(player.getUniqueId(), System.currentTimeMillis());
+    }
+
+    private void tickTotalDisconnectTimes(@NotNull SpeedrunShowdownRanked plugin) {
+        long currentTime = System.currentTimeMillis();
+        long timeDiff = currentTime - prevTime;
+        long cancelMatchTimeout = CONFIG.getInt("disconnect_timeout") * 1000;
+        disconnectTimes.forEach((uuid, disconnectTime) -> {
+            if (!loginTimes.containsKey(uuid)) return;
+            long loginTime = loginTimes.get(uuid);
+            if (disconnectTime <= loginTime) return;
+            if (currentTime > disconnectTime) {
+                totalDisconnectedTime.computeIfAbsent(uuid, id -> timeDiff);
+                totalDisconnectedTime.computeIfPresent(uuid, (id,time) -> time + timeDiff);
+                if (totalDisconnectedTime.get(uuid) > cancelMatchTimeout)
+                    totalDisconnectedTimeExceeded(plugin, uuid);
+            }
+        });
+        prevTime = currentTime;
+    }
+
+    private void totalDisconnectedTimeExceeded(@NotNull SpeedrunShowdownRanked plugin, @NotNull UUID uuid) {
+        cancelMatch(plugin, uuid);
     }
 
     public boolean canAnyPlayerJoin() {
@@ -327,6 +375,14 @@ public class GPServerState {
 
     public int getLobbyId() {
         return id;
+    }
+
+    public void addUuidToWatchList(String mcUUIDStr) {
+        queuePlayers.add(mcUUIDStr);
+    }
+
+    public boolean isOnWatchList(Player player) {
+        return queuePlayers.contains(player.getUniqueId().toString());
     }
 
     public enum QueueState {

@@ -41,6 +41,13 @@ public class InternalApiServer {
                 response -> plugin.logger.info("Sent Set Queue to {} to Game Server {}", queueId, id));
     }
 
+    public void sendCancelSet(int id) {
+        String url = getRequestURL("cancel_set", id);
+        String jsonBody = "{\"do_it\":\"now\"}";
+        handlePostAsync(url, jsonBody,
+                response -> plugin.logger.info("Sent Cancel Set to Game Server {}", id));
+    }
+
     public InternalApiServer(SpeedrunShowdownRanked plugin) {
         this.plugin = plugin;
     }

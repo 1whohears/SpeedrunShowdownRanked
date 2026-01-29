@@ -248,6 +248,7 @@ public class GPServerState {
     }
 
     private void tickTotalDisconnectTimes(@NotNull SpeedrunShowdownRanked plugin) {
+        if (!isGameInProgress()) return;
         long currentTime = System.currentTimeMillis();
         long timeDiff = currentTime - prevTime;
         long cancelMatchTimeout = CONFIG.getInt("disconnect_timeout") * 1000;

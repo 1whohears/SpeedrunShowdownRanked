@@ -25,6 +25,7 @@ public class GPServerState {
     private QueueType queueType = QueueType.NONE;
     private QueueState queueState = QueueState.NONE;
     private JsonObject queueData = new JsonObject();
+    private int numQueueMembers = 0;
 
     public GPServerState(int id) {
         this.id = id;
@@ -93,9 +94,12 @@ public class GPServerState {
 
     private void handlePlayerVeto(@NotNull SpeedrunShowdownRanked plugin, @NotNull Player player) {
         int highestTier = findHighestTier(player);
+        if (highestTier >= numQueueMembers-1) {
+            highestTier = numQueueMembers-1;
+        }
         while (!registerVeto(player, highestTier+1)) {
             ++highestTier;
-        };
+        }
         int TIER = highestTier+1;
         if (vetos.get(highestTier).size() % (highestTier + 1) != 0) {
             player.getCurrentServer().ifPresent(server -> server.getServer().sendMessage(infoMsg(
@@ -108,7 +112,7 @@ public class GPServerState {
         )));
         plugin.resetGameplaySeed(id, msg -> player.sendMessage(errorMsg(msg)));
         loginTimes.clear();
-        // TODO doesn't allow for endless consensus vetos
+        if (highestTier >= numQueueMembers-1) vetos.get(highestTier).clear();
     }
 
     private boolean registerVeto(@NotNull Player player, int tier) {
@@ -318,6 +322,7 @@ public class GPServerState {
         if (queueState != QueueState.PREGAME && next == QueueState.PREGAME) loginTimes.clear();
         queueState = next;
         if (queueState == QueueState.CLOSED && !isGameInProgress()) resetQueue();
+        numQueueMembers = queueData.get("members").getAsJsonArray().size();
     }
 
     public int getLobbyId() {

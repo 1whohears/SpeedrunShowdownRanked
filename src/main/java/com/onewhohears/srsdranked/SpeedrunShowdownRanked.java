@@ -3,10 +3,7 @@ package com.onewhohears.srsdranked;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.inject.Inject;
-import com.onewhohears.srsdranked.command.CheckInQueue;
-import com.onewhohears.srsdranked.command.JoinQueue;
-import com.onewhohears.srsdranked.command.ResetSeed;
-import com.onewhohears.srsdranked.command.VetoSeed;
+import com.onewhohears.srsdranked.command.*;
 import com.velocitypowered.api.command.CommandManager;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.connection.DisconnectEvent;
@@ -245,7 +242,9 @@ public class SpeedrunShowdownRanked {
         CommandManager cmdMng = proxy.getCommandManager();
         cmdMng.register(cmdMng.metaBuilder("reset_seed").plugin(this).build(), ResetSeed.create(this));
         cmdMng.register(cmdMng.metaBuilder("join_queue").plugin(this).build(), JoinQueue.create(this));
+        cmdMng.register(cmdMng.metaBuilder("leave_queue").plugin(this).build(), LeaveQueue.create(this));
         cmdMng.register(cmdMng.metaBuilder("check_in_queue").plugin(this).build(), CheckInQueue.create(this));
+        cmdMng.register(cmdMng.metaBuilder("check_out_queue").plugin(this).build(), CheckOutQueue.create(this));
         cmdMng.register(cmdMng.metaBuilder("veto").plugin(this).build(), VetoSeed.create(this));
 
         try {
@@ -295,6 +294,11 @@ public class SpeedrunShowdownRanked {
 
     @Subscribe
     public void onDisconnect(DisconnectEvent event) {
+        if (event.getPlayer().getCurrentServer().isEmpty()) return;
+        String serverName = event.getPlayer().getCurrentServer().get().getServerInfo().getName();
+        GPServerState state = getFromServerName(serverName);
+        if (state == null) return;
+
         // TODO check out on disconnect
         // TODO if disconnect in the middle of a match, they have some timeout time to reconnect, otherwise the match gets canceled and they loose elo
     }

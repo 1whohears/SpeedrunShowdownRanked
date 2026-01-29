@@ -59,6 +59,38 @@ public class GPServerState {
         return true;
     }
 
+    public boolean checkOut(@NotNull SpeedrunShowdownRanked plugin, @NotNull Player player) {
+        String reqUrl = getRequestURL("/league/queue/check_out");
+        reqUrl += "&mcUUID="+player.getUniqueId()+"&queueId="+queueId;
+        handleResponseAsync(reqUrl, plugin, response -> {
+            if (response.has("error")) {
+                player.sendMessage(errorMsg(response.get("error").getAsString()));
+                return;
+            }
+            setQueueData(response.getAsJsonObject("queue"));
+            String result = response.get("result").getAsString();
+            player.sendMessage(infoMsg("Check Out Queue "+queueId+" Result: "+result));
+            plugin.sendToDefaultServer(player);
+        });
+        return true;
+    }
+
+    public boolean leave(@NotNull SpeedrunShowdownRanked plugin, @NotNull Player player) {
+        String reqUrl = getRequestURL("/league/queue/leave");
+        reqUrl += "&mcUUID="+player.getUniqueId()+"&queueId="+queueId;
+        handleResponseAsync(reqUrl, plugin, response -> {
+            if (response.has("error")) {
+                player.sendMessage(errorMsg(response.get("error").getAsString()));
+                return;
+            }
+            setQueueData(response.getAsJsonObject("queue"));
+            String result = response.get("result").getAsString();
+            player.sendMessage(infoMsg("Leave Queue "+queueId+" Result: "+result));
+            plugin.sendToDefaultServer(player);
+        });
+        return true;
+    }
+
     private void handlePlayerVeto(@NotNull SpeedrunShowdownRanked plugin, @NotNull Player player) {
         int highestTier = findHighestTier(player);
         while (!registerVeto(player, highestTier+1)) {

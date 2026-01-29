@@ -211,7 +211,11 @@ public class SpeedrunShowdownRanked {
                 }
                 String mcUUIDStr = extraData.get("mcUUID").getAsString();
                 Optional<Player> player = proxy.getPlayer(UUID.fromString(mcUUIDStr));
-                player.ifPresent(p -> p.createConnectionRequest(gameServer).connect());
+                player.ifPresent(p -> {
+                    p.createConnectionRequest(gameServer).connect();
+                    p.sendMessage(infoMsg("You have "+CONFIG.getLong("veto_time")+" seconds to " +
+                            "Veto the seed with /veto"));
+                });
             });
         }
     }

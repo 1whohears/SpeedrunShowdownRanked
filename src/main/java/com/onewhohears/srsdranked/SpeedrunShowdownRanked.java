@@ -129,6 +129,8 @@ public class SpeedrunShowdownRanked {
             state.setQueueData(response.getAsJsonObject("queue"));
             String result = response.get("result").getAsString();
             player.sendMessage(infoMsg("Join Queue "+state.getQueueId()+" Result: "+result));
+            player.sendMessage(infoMsg("Once the Queue Enters Pre-Game, you must Check In with " +
+                    "/check_in_queue "+state.getQueueId()));
             if (state.isPreGame() && state.isOnline() && (result.equals("SUCCESS") || result.equals("ALREADY_JOINED"))) {
                 if (!sendToGameplayServer(player, state.getLobbyId())) {
                     player.sendMessage(errorMsg("Could not send you to the game play server: "+state.getStatus()));

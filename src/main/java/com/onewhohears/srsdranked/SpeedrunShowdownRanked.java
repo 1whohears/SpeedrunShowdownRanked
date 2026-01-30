@@ -43,6 +43,8 @@ import static com.onewhohears.srsdranked.UtilNetApi.handleResponseAsync;
 @Plugin(id = "srsdranked", name = "SpeedrunShowdownRanked", version = BuildConstants.VERSION)
 public class SpeedrunShowdownRanked {
 
+    public static SpeedrunShowdownRanked SRSDR;
+
     public static YamlDocument CONFIG;
 
     public final Logger logger;
@@ -131,7 +133,7 @@ public class SpeedrunShowdownRanked {
             player.sendMessage(infoMsg("Join Queue "+state.getQueueId()+" Result: "+result));
             player.sendMessage(infoMsg("Once the Queue Enters Pre-Game, you must Check In with " +
                     "/check_in_queue "+state.getQueueId()));
-            if (state.isPreGame() && state.isOnline() && (result.equals("SUCCESS") || result.equals("ALREADY_JOINED"))) {
+            if (result.equals("SUCCESS") || result.equals("ALREADY_JOINED")) {
                 if (!sendToGameplayServer(player, state.getLobbyId())) {
                     player.sendMessage(errorMsg("Could not send you to the game play server: "+state.getStatus()));
                 }
@@ -268,6 +270,7 @@ public class SpeedrunShowdownRanked {
 
     @Inject
     public SpeedrunShowdownRanked(ProxyServer proxy, Logger logger, @DataDirectory Path dataDirectory) {
+        SRSDR = this;
         this.proxy = proxy;
         this.logger = logger;
         try {
@@ -293,16 +296,17 @@ public class SpeedrunShowdownRanked {
     @Subscribe
     public void onConnectedToSever(ServerConnectedEvent event) {
         GPServerState stateFromList = getFromWatchList(event.getPlayer());
-        if (stateFromList == null) return;
+        if (stateFromList != null && (stateFromList.isResettingSeed() || stateFromList.isOnline())) return;
         String serverName = event.getServer().getServerInfo().getName();
         GPServerState stateFromName = getFromServerName(serverName);
-        if ((stateFromName == null && !stateFromList.isResettingSeed()) ||
-                (stateFromName != null && stateFromList.getLobbyId() != stateFromName.getLobbyId())) {
-            stateFromList.onPlayerDisconnect(this, event.getPlayer());
-            sendToGameplayServer(event.getPlayer(), stateFromList.getLobbyId());
+        logger.info("CONNECT {} | {} | {} | {}", event.getPlayer(), serverName, stateFromList, stateFromName);
+        if (stateFromName != null && stateFromList != null && stateFromList.getLobbyId() == stateFromName.getLobbyId()) {
+            stateFromName.onPlayerConnect(event.getPlayer());
             return;
         }
-        stateFromList.onPlayerConnect(event.getPlayer());
+        if (stateFromList == null) return;
+        stateFromList.onPlayerDisconnect(this, event.getPlayer());
+        sendToGameplayServer(event.getPlayer(), stateFromList.getLobbyId());
     }
 
     @Subscribe

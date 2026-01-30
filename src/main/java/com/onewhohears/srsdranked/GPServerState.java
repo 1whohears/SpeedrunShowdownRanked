@@ -46,6 +46,7 @@ public class GPServerState {
     }
 
     public boolean checkIn(@NotNull SpeedrunShowdownRanked plugin, @NotNull Player player) {
+        SRSDR.logger.info("CHECK IN {}", player.getUsername());
         String reqUrl = getRequestURL("/league/queue/check_in");
         reqUrl += "&mcUUID="+player.getUniqueId()+"&queueId="+queueId;
         handleResponseAsync(reqUrl, plugin, response -> {
@@ -66,6 +67,7 @@ public class GPServerState {
     }
 
     public boolean checkOut(@NotNull SpeedrunShowdownRanked plugin, @NotNull Player player) {
+        SRSDR.logger.info("CHECK OUT {}", player.getUsername());
         String reqUrl = getRequestURL("/league/queue/check_out");
         reqUrl += "&mcUUID="+player.getUniqueId()+"&queueId="+queueId;
         handleResponseAsync(reqUrl, plugin, response -> {
@@ -82,6 +84,7 @@ public class GPServerState {
     }
 
     public boolean leave(@NotNull SpeedrunShowdownRanked plugin, @NotNull Player player) {
+        SRSDR.logger.info("LEAVE {}", player.getUsername());
         String reqUrl = getRequestURL("/league/queue/leave");
         reqUrl += "&mcUUID="+player.getUniqueId()+"&queueId="+queueId;
         handleResponseAsync(reqUrl, plugin, response -> {
@@ -101,9 +104,10 @@ public class GPServerState {
         int highestTier = findHighestTier(player);
         if (highestTier >= numQueueMembers-1) {
             highestTier = numQueueMembers-1;
-        }
-        while (!registerVeto(player, highestTier+1)) {
-            ++highestTier;
+        } else {
+            while (!registerVeto(player, highestTier+1)) {
+                ++highestTier;
+            }
         }
         int TIER = highestTier+1;
         if (vetos.get(highestTier).size() % (highestTier + 1) != 0) {
@@ -225,6 +229,7 @@ public class GPServerState {
     }
 
     private void resetQueue() {
+        SRSDR.logger.info("GAME SERVER {} {} {} {} RESETTING QUEUE", getLobbyId(), getQueueId(), status, queueState);
         queueId = -1;
         queueType = QueueType.NONE;
         queueState = QueueState.NONE;
@@ -238,17 +243,19 @@ public class GPServerState {
     }
 
     public void onPlayerConnect(@NotNull Player player) {
+        SRSDR.logger.info("PLAYER CONNECT {} {}", getLobbyId(), player);
         loginTimes.putIfAbsent(player.getUniqueId(), System.currentTimeMillis());
     }
 
     public void onPlayerDisconnect(@NotNull SpeedrunShowdownRanked plugin, @NotNull Player player) {
+        SRSDR.logger.info("PLAYER DISCONNECT {} {}", getLobbyId(), player);
         if (!isOnWatchList(player)) return;
         disconnectTimes.put(player.getUniqueId(), System.currentTimeMillis());
         checkOut(plugin, player);
     }
 
     private void tickTotalDisconnectTimes(@NotNull SpeedrunShowdownRanked plugin) {
-        if (!isGameInProgress()) return;
+        if (!isGameInProgress() || isResettingSeed()) return;
         long currentTime = System.currentTimeMillis();
         long timeDiff = currentTime - prevTime;
         long cancelMatchTimeout = CONFIG.getInt("disconnect_timeout") * 1000;
@@ -303,6 +310,7 @@ public class GPServerState {
     }
 
     public void readStatus(@NotNull String status, @NotNull SpeedrunShowdownRanked plugin) {
+        GPServerStatus prev = this.status;
         boolean wasOffline = isResettingSeed();
         switch (status) {
             case "READY": {
@@ -329,7 +337,8 @@ public class GPServerState {
         if (wasOffline && this.status == GPServerStatus.ONLINE) {
             plugin.setupGameplayLobby(id, queueId);
         }
-        plugin.logger.info("Received Status {} for Game Server {} with Queue {}", this.status.name(), id, queueId);
+        if (this.status != prev)
+            plugin.logger.info("Received Status {} for Game Server {} with Queue {}", this.status.name(), id, queueId);
     }
 
     private void setOffline() {
@@ -411,5 +420,10 @@ public class GPServerState {
 
     public boolean isOnline() {
         return status == GPServerStatus.ONLINE;
+    }
+
+    @Override
+    public String toString() {
+        return "SERVER_STATE:"+id+":"+status+":"+queueId+":"+queueState;
     }
 }

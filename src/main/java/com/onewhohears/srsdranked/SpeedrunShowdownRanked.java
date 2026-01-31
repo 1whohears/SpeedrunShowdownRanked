@@ -134,6 +134,7 @@ public class SpeedrunShowdownRanked {
             player.sendMessage(infoMsg("Once the Queue Enters Pre-Game, you must Check In with " +
                     "/check_in_queue "+state.getQueueId()));
             if (result.equals("SUCCESS") || result.equals("ALREADY_JOINED")) {
+                state.addUuidToWatchList(player.getUniqueId().toString());
                 if (!sendToGameplayServer(player, state.getLobbyId())) {
                     player.sendMessage(errorMsg("Could not send you to the game play server: "+state.getStatus()));
                 }
@@ -312,7 +313,7 @@ public class SpeedrunShowdownRanked {
         stateFromList.onPlayerDisconnect(this, event.getPlayer());
         proxy.getScheduler().buildTask(this,
                 () -> sendToGameplayServer(event.getPlayer(), stateFromList.getLobbyId()))
-                        .delay(1, TimeUnit.SECONDS).schedule();
+                        .delay(10, TimeUnit.SECONDS).schedule();
     }
 
     @Subscribe

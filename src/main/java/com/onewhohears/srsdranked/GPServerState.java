@@ -96,6 +96,7 @@ public class GPServerState {
             String result = response.get("result").getAsString();
             player.sendMessage(infoMsg("Leave Queue "+queueId+" Result: "+result));
             plugin.sendToDefaultServer(player);
+            queuePlayers.remove(player.getUniqueId().toString());
         });
         return true;
     }

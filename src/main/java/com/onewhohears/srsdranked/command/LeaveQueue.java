@@ -9,12 +9,26 @@ import com.velocitypowered.api.command.BrigadierCommand;
 import com.velocitypowered.api.command.CommandSource;
 import com.velocitypowered.api.proxy.Player;
 
+import static com.onewhohears.srsdranked.SpeedrunShowdownRanked.SRSDR;
 import static com.onewhohears.srsdranked.SpeedrunShowdownRanked.errorMsg;
 
 public class LeaveQueue {
     public static BrigadierCommand create(final SpeedrunShowdownRanked plugin) {
         LiteralCommandNode<CommandSource> main = BrigadierCommand.literalArgumentBuilder("leave_queue")
                 .requires(source -> true)
+                .executes(context -> {
+                    if (!(context.getSource() instanceof Player player)) {
+                        context.getSource().sendMessage(errorMsg("User of this command must be a player!"));
+                        return 0;
+                    }
+                    GPServerState state = SRSDR.getFromWatchList(player);
+                    if (state == null) {
+                        context.getSource().sendMessage(errorMsg("You are not part of any match to leave."));
+                        return 0;
+                    }
+                    if (state.leave(plugin, player)) return Command.SINGLE_SUCCESS;
+                    return 0;
+                })
                 .then(BrigadierCommand.requiredArgumentBuilder("queue_id", IntegerArgumentType.integer(0))
                         .executes(context -> {
                             if (!(context.getSource() instanceof Player player)) {

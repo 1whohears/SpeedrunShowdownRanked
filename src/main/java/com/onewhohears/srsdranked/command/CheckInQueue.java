@@ -33,4 +33,22 @@ public class CheckInQueue {
                         })).build();
         return new BrigadierCommand(main);
     }
+    public static BrigadierCommand create2(final SpeedrunShowdownRanked plugin) {
+        LiteralCommandNode<CommandSource> main = BrigadierCommand.literalArgumentBuilder("check_in")
+                .requires(source -> true)
+                .executes(context -> {
+                    if (!(context.getSource() instanceof Player player)) {
+                        context.getSource().sendMessage(errorMsg("User of this command must be a player!"));
+                        return 0;
+                    }
+                    GPServerState state = SRSDR.getFromWatchList(player);
+                    if (state == null) {
+                        context.getSource().sendMessage(errorMsg("You are not part of any match to check in."));
+                        return 0;
+                    }
+                    if (state.checkIn(plugin, player)) return Command.SINGLE_SUCCESS;
+                    return 0;
+                }).build();
+        return new BrigadierCommand(main);
+    }
 }

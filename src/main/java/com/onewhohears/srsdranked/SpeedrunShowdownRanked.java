@@ -259,6 +259,7 @@ public class SpeedrunShowdownRanked {
         cmdMng.register(cmdMng.metaBuilder("check_out").plugin(this).build(), CheckOutQueue.create2(this));
         cmdMng.register(cmdMng.metaBuilder("veto").plugin(this).build(), VetoSeed.create(this));
         cmdMng.register(cmdMng.metaBuilder("rejoin").plugin(this).build(), RejoinGame.create(this));
+        cmdMng.register(cmdMng.metaBuilder("link_discord").plugin(this).build(), LinkDiscord.create(this));
 
         try {
             internalApiServer.start();

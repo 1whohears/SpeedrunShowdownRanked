@@ -381,4 +381,19 @@ public class SpeedrunShowdownRanked {
     public InternalApiServer getInternalApiServer() {
         return internalApiServer;
     }
+
+    public boolean linkDiscordAccount(@NotNull Player player, int linkCode) {
+        String leagueBotURL = getRequestURL("/league/link/minecraft/player");
+        leagueBotURL += "&mcUUID="+player.getUniqueId()+"&linkCode="+linkCode;
+
+        handleResponseAsync(leagueBotURL, this, response -> {
+            if (response.has("error")) {
+                player.sendMessage(errorMsg(response.get("error").getAsString()));
+                return;
+            }
+            player.sendMessage(infoMsg(response.get("result").getAsString()));
+        });
+
+        return true;
+    }
 }

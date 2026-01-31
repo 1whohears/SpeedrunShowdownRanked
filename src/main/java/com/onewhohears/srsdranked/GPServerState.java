@@ -229,7 +229,9 @@ public class GPServerState {
     }
 
     private void resetQueue() {
-        SRSDR.logger.info("GAME SERVER {} {} {} {} RESETTING QUEUE", getLobbyId(), getQueueId(), status, queueState);
+        if (queueId != -1) {
+            SRSDR.logger.info("GAME SERVER {} {} {} {} RESETTING QUEUE", getLobbyId(), getQueueId(), status, queueState);
+        }
         queueId = -1;
         queueType = QueueType.NONE;
         queueState = QueueState.NONE;

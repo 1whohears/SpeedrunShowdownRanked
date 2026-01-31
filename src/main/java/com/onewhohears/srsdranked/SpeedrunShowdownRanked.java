@@ -256,6 +256,7 @@ public class SpeedrunShowdownRanked {
         cmdMng.register(cmdMng.metaBuilder("check_in_queue").plugin(this).build(), CheckInQueue.create(this));
         cmdMng.register(cmdMng.metaBuilder("check_out_queue").plugin(this).build(), CheckOutQueue.create(this));
         cmdMng.register(cmdMng.metaBuilder("veto").plugin(this).build(), VetoSeed.create(this));
+        cmdMng.register(cmdMng.metaBuilder("rejoin").plugin(this).build(), RejoinGame.create(this));
 
         try {
             internalApiServer.start();
@@ -306,7 +307,9 @@ public class SpeedrunShowdownRanked {
         }
         if (stateFromList == null) return;
         stateFromList.onPlayerDisconnect(this, event.getPlayer());
-        sendToGameplayServer(event.getPlayer(), stateFromList.getLobbyId());
+        proxy.getScheduler().buildTask(this,
+                () -> sendToGameplayServer(event.getPlayer(), stateFromList.getLobbyId()))
+                        .delay(1, TimeUnit.SECONDS).schedule();
     }
 
     @Subscribe

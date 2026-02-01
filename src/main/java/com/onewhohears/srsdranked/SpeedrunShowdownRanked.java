@@ -89,6 +89,10 @@ public class SpeedrunShowdownRanked {
     }
 
     public void joinCreateQueue(@NotNull Player player, @NotNull QueueType type) {
+        if (getFromWatchList(player) != null) {
+            player.sendMessage(errorMsg("You already joined a queue. You must leave if you want to join a different one!"));
+            return;
+        }
         GPServerState state = getByType(type);
         if (state == null) {
             state = getFirstEmpty();

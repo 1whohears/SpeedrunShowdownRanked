@@ -80,6 +80,7 @@ public class SpeedrunShowdownRanked {
         gameServer.sendMessage(infoMsg("This seed is being reset." +
                 " Players will be temporarily moved to the Lobby."));
         GPServerState state = gpServerStates.get(id);
+        state.setResettingSeed();
         for (Player player : gameServer.getPlayersConnected()) {
             player.createConnectionRequest(lobbyServer).connect();
             state.addToRejoinList(player);
@@ -291,7 +292,7 @@ public class SpeedrunShowdownRanked {
         stateFromList.onPlayerDisconnect(this, event.getPlayer());
         proxy.getScheduler().buildTask(this,
                 () -> sendToGameplayServer(event.getPlayer(), stateFromList.getLobbyId()))
-                        .delay(2, TimeUnit.SECONDS).schedule();
+                .schedule();
     }
 
     @Subscribe

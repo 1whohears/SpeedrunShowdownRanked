@@ -121,9 +121,9 @@ public class GPServerState {
         player.getCurrentServer().ifPresent(server -> server.getServer().sendMessage(infoMsg(
                 player.getUsername()+" is using their Tier "+TIER+" Veto to Reset the Seed!"
         )));
-        plugin.resetGameplaySeed(id, msg -> player.sendMessage(errorMsg(msg)));
         loginTimes.clear();
         if (highestTier >= numQueueMembers-1) vetos.get(highestTier).clear();
+        plugin.resetGameplaySeed(id, msg -> player.sendMessage(errorMsg(msg)));
     }
 
     private boolean registerVeto(@NotNull Player player, int tier) {

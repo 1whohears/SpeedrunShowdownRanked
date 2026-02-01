@@ -4,6 +4,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.server.RegisteredServer;
+import net.kyori.adventure.text.Component;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -381,10 +382,55 @@ public class GPServerState {
     public void setQueueData(JsonObject queueData) {
         this.queueData = queueData;
         QueueState next = readQueueState(queueData.get("queueState").getAsString());
-        if (queueState != QueueState.PREGAME && next == QueueState.PREGAME) loginTimes.clear();
+        if (next != queueState) {
+            if (next == QueueState.PREGAME) {
+                loginTimes.clear();
+                sendPlayersToServer(SRSDR);
+                sendMessage(specialMsg("PREGAME has started! All enrolled players must check in and can Veto seeds!"));
+            } else if (next == QueueState.PREGAME_SUBS) {
+                sendPlayersToServer(SRSDR);
+                sendMessage(specialMsg("PREGAME SUBS has started! If you check in after the phase you loose veto rights!"));
+            }
+        }
         queueState = next;
         if (queueState == QueueState.CLOSED && !isGameInProgress()) resetQueue();
         numQueueMembers = queueData.get("members").getAsJsonArray().size();
+    }
+
+    public void sendMessage(Component msg) {
+        RegisteredServer gameServer = SRSDR.getGameplayServer(getLobbyId());
+        if (gameServer != null) gameServer.sendMessage(msg);
+    }
+
+    public void sendPlayersToServer(@NotNull SpeedrunShowdownRanked plugin) {
+        RegisteredServer gameServer = plugin.getGameplayServer(getLobbyId());
+        if (gameServer == null) return;
+        JsonArray members = queueData.getAsJsonArray("members");
+        for (int i = 0; i < members.size(); ++i) {
+            JsonObject member = members.get(i).getAsJsonObject();
+            long id = member.get("id").getAsLong();
+            plugin.handleContestantResponse(id, res -> {
+                if (res.has("error")) {
+                    plugin.logger.error(res.get("error").getAsString());
+                    return;
+                }
+                JsonObject memberData = res.getAsJsonObject("contestant");
+                JsonObject extraData = memberData.getAsJsonObject("extra_data");
+                if (!extraData.has("mcUUID")) {
+                    plugin.logger.error("Could not send member {} to the gameplay server" +
+                            " because their discord account is not linked!", id);
+                    return;
+                }
+                String mcUUIDStr = extraData.get("mcUUID").getAsString();
+                addUuidToWatchList(mcUUIDStr);
+                Optional<Player> player = plugin.proxy.getPlayer(UUID.fromString(mcUUIDStr));
+                player.ifPresent(p -> {
+                    p.createConnectionRequest(gameServer).connect();
+                    p.sendMessage(infoMsg("You have "+CONFIG.getLong("veto_time")+" seconds to " +
+                            "Veto the seed with /veto"));
+                });
+            });
+        }
     }
 
     public int getLobbyId() {

@@ -150,6 +150,10 @@ public class SpeedrunShowdownRanked {
         return Component.text(msg, NamedTextColor.YELLOW);
     }
 
+    public static Component specialMsg(String msg) {
+        return Component.text(msg, NamedTextColor.LIGHT_PURPLE);
+    }
+
     @Nullable
     private GPServerState getByType(@NotNull QueueType type) {
         for (GPServerState state : gpServerStates.values()) {
@@ -190,40 +194,10 @@ public class SpeedrunShowdownRanked {
                 }
                 JsonObject queueData = response.getAsJsonObject("queue");
                 state.setQueueData(queueData);
-                sendPlayersToServer(queueData, gameServer, state);
+                state.sendPlayersToServer(this);
             });
         } else {
             state.resolveRejoinList(gameServer);
-        }
-    }
-
-    private void sendPlayersToServer(@NotNull JsonObject queueData, @NotNull RegisteredServer gameServer,
-                                     @NotNull GPServerState state) {
-        JsonArray members = queueData.getAsJsonArray("members");
-        for (int i = 0; i < members.size(); ++i) {
-            JsonObject member = members.get(i).getAsJsonObject();
-            long id = member.get("id").getAsLong();
-            handleContestantResponse(id, res -> {
-                if (res.has("error")) {
-                    logger.error(res.get("error").getAsString());
-                    return;
-                }
-                JsonObject memberData = res.getAsJsonObject("contestant");
-                JsonObject extraData = memberData.getAsJsonObject("extra_data");
-                if (!extraData.has("mcUUID")) {
-                    logger.error("Could not send member {} to the gameplay server" +
-                            " because their discord account is not linked!", id);
-                    return;
-                }
-                String mcUUIDStr = extraData.get("mcUUID").getAsString();
-                state.addUuidToWatchList(mcUUIDStr);
-                Optional<Player> player = proxy.getPlayer(UUID.fromString(mcUUIDStr));
-                player.ifPresent(p -> {
-                    p.createConnectionRequest(gameServer).connect();
-                    p.sendMessage(infoMsg("You have "+CONFIG.getLong("veto_time")+" seconds to " +
-                            "Veto the seed with /veto"));
-                });
-            });
         }
     }
 

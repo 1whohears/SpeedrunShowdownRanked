@@ -301,19 +301,19 @@ public class SpeedrunShowdownRanked {
     @Subscribe
     public void onConnectedToSever(ServerConnectedEvent event) {
         GPServerState stateFromList = getFromWatchList(event.getPlayer());
-        if (stateFromList != null && (stateFromList.isResettingSeed() || stateFromList.isOnline())) return;
+        if (stateFromList == null) return;
         String serverName = event.getServer().getServerInfo().getName();
         GPServerState stateFromName = getFromServerName(serverName);
         logger.info("CONNECT {} | {} | {} | {}", event.getPlayer(), serverName, stateFromList, stateFromName);
-        if (stateFromName != null && stateFromList != null && stateFromList.getLobbyId() == stateFromName.getLobbyId()) {
+        if (stateFromName != null && stateFromList.getLobbyId() == stateFromName.getLobbyId()) {
             stateFromName.onPlayerConnect(event.getPlayer());
             return;
         }
-        if (stateFromList == null) return;
+        if (stateFromList.isResettingSeed()) return;
         stateFromList.onPlayerDisconnect(this, event.getPlayer());
         proxy.getScheduler().buildTask(this,
                 () -> sendToGameplayServer(event.getPlayer(), stateFromList.getLobbyId()))
-                        .delay(10, TimeUnit.SECONDS).schedule();
+                        .delay(2, TimeUnit.SECONDS).schedule();
     }
 
     @Subscribe

@@ -132,10 +132,11 @@ public class GPServerState {
     }
 
     private int findHighestTier(@NotNull Player player) {
+        if (vetos.isEmpty()) return 0;
         for (int i = 0; i < vetos.size(); ++i)
             if (!vetos.get(i).contains(player.getUniqueId()))
                 return i;
-        return 0;
+        return vetos.size()-1;
     }
 
     public boolean vetoSeed(@NotNull SpeedrunShowdownRanked plugin, @NotNull Player player) {

@@ -249,6 +249,7 @@ public class GPServerState {
     public void onPlayerConnect(@NotNull Player player) {
         SRSDR.logger.info("PLAYER CONNECT {} {}", getLobbyId(), player);
         loginTimes.putIfAbsent(player.getUniqueId(), System.currentTimeMillis());
+        checkIn(SRSDR, player);
     }
 
     public void onPlayerDisconnect(@NotNull SpeedrunShowdownRanked plugin, @NotNull Player player) {
@@ -387,6 +388,12 @@ public class GPServerState {
                 loginTimes.clear();
                 sendPlayersToServer(SRSDR);
                 sendMessage(specialMsg("PREGAME has started! All enrolled players must check in and can Veto seeds!"));
+                RegisteredServer server = SRSDR.getGameplayServer(getLobbyId());
+                if (server != null) {
+                    for (Player player : server.getPlayersConnected()) {
+                        checkIn(SRSDR, player);
+                    }
+                }
             } else if (next == QueueState.PREGAME_SUBS) {
                 sendPlayersToServer(SRSDR);
                 sendMessage(specialMsg("PREGAME SUBS has started! If you check in after the phase you loose veto rights!"));

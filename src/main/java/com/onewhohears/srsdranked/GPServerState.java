@@ -106,6 +106,7 @@ public class GPServerState {
         int highestTier = findHighestTier(player);
         if (highestTier >= numQueueMembers-1) {
             highestTier = numQueueMembers-1;
+            registerVeto(player, highestTier+1);
         } else {
             while (!registerVeto(player, highestTier+1)) {
                 ++highestTier;

@@ -33,6 +33,7 @@ public class GPServerState {
     private JsonObject queueData = new JsonObject();
     private int numQueueMembers = 0;
     private long prevTime = 0;
+    private boolean isSetResolved = false;
 
     public GPServerState(int id) {
         this.id = id;
@@ -219,7 +220,7 @@ public class GPServerState {
                if (error != null) setOffline();
             });
         }
-        tickTotalDisconnectTimes(plugin);
+        //tickTotalDisconnectTimes(plugin);
     }
 
     public void voteReady(@NotNull Player player) {
@@ -238,7 +239,7 @@ public class GPServerState {
         // TODO cancel the match and reduce the elo of the player that disconnected
     }
 
-    private void resetQueue() {
+    public void resetQueue() {
         if (queueId != -1) {
             SRSDR.logger.info("GAME SERVER {} {} {} {} RESETTING QUEUE", getLobbyId(), getQueueId(), status, queueState);
         }
@@ -248,6 +249,7 @@ public class GPServerState {
         queueData = new JsonObject();
         loginTimes.clear();
         vetos.clear();
+        readyVotes.clear();
         rejoinPlayers.clear();
         queuePlayers.clear();
         disconnectTimes.clear();
@@ -408,7 +410,8 @@ public class GPServerState {
             }
         }
         queueState = next;
-        if (queueState == QueueState.CLOSED && !isGameInProgress()) resetQueue();
+        isSetResolved = queueData.get("resolved").getAsBoolean();
+        if (queueState == QueueState.CLOSED && !isSetResolved) resetQueue();
         numQueueMembers = queueData.get("members").getAsJsonArray().size();
     }
 

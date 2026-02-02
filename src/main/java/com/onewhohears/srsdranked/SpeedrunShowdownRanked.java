@@ -87,6 +87,15 @@ public class SpeedrunShowdownRanked {
         return true;
     }
 
+    public boolean resetQueue(int id, Consumer<String> debug) {
+        if (!gpServerStates.containsKey(id)) {
+            debug.accept("Could not reset gameplay server "+id+" because that is an invalid id.");
+            return false;
+        }
+        gpServerStates.get(id).resetQueue();
+        return true;
+    }
+
     public void joinCreateQueue(@NotNull Player player, @NotNull QueueType type) {
         if (getFromWatchList(player) != null) {
             player.sendMessage(errorMsg("You already joined a queue. You must leave if you want to join a different one!"));
@@ -99,6 +108,7 @@ public class SpeedrunShowdownRanked {
                 player.sendMessage(errorMsg("There are no gameplay servers available for "+type));
                 return;
             }
+            state.resetQueue();
             state.setQueueType(type);
             final GPServerState gpss = state;
             String requestUrl = getRequestURL("/league/queue/create") + type.getCreateQueueParams();
@@ -229,6 +239,7 @@ public class SpeedrunShowdownRanked {
     public void onProxyInitialization(ProxyInitializeEvent event) {
         CommandManager cmdMng = proxy.getCommandManager();
         cmdMng.register(cmdMng.metaBuilder("reset_seed").plugin(this).build(), ResetSeed.create(this));
+        cmdMng.register(cmdMng.metaBuilder("reset_queue").plugin(this).build(), ResetQueue.create(this));
         cmdMng.register(cmdMng.metaBuilder("join_queue").plugin(this).build(), JoinQueue.create(this));
         cmdMng.register(cmdMng.metaBuilder("leave_queue").plugin(this).build(), LeaveQueue.create(this));
         cmdMng.register(cmdMng.metaBuilder("check_in_queue").plugin(this).build(), CheckInQueue.create(this));
@@ -291,7 +302,7 @@ public class SpeedrunShowdownRanked {
         proxy.getScheduler().buildTask(this,
                 () -> sendToGameplayServer(event.getPlayer(), stateFromList.getLobbyId()))
                 .schedule();
-        // FIXME not rejoining player when the match starts
+        // FIXME not rejoining player after the match starts
     }
 
     @Subscribe

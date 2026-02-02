@@ -291,6 +291,7 @@ public class SpeedrunShowdownRanked {
         proxy.getScheduler().buildTask(this,
                 () -> sendToGameplayServer(event.getPlayer(), stateFromList.getLobbyId()))
                 .schedule();
+        // FIXME not rejoining player when the match starts
     }
 
     @Subscribe

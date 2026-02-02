@@ -22,6 +22,7 @@ public class GPServerState {
     private final Map<UUID,Long> disconnectTimes = new HashMap<>();
     private final Map<UUID,Long> totalDisconnectedTime = new HashMap<>();
     private final List<Set<UUID>> vetos = new ArrayList<>();
+    private final Set<UUID> readyVotes = new HashSet<>();
     private final Set<Player> rejoinPlayers = new HashSet<>();
     private final Set<String> queuePlayers = new HashSet<>();
 
@@ -123,6 +124,7 @@ public class GPServerState {
                 player.getUsername()+" is using their Tier "+TIER+" Veto to Reset the Seed!"
         )));
         loginTimes.clear();
+        readyVotes.clear();
         if (highestTier >= numQueueMembers-1) vetos.get(highestTier).clear();
         plugin.resetGameplaySeed(id, msg -> player.sendMessage(errorMsg(msg)));
     }
@@ -218,6 +220,10 @@ public class GPServerState {
             });
         }
         tickTotalDisconnectTimes(plugin);
+    }
+
+    public void voteReady(@NotNull Player player) {
+        // TODO be able to vote ready to start the match?
     }
 
     public void cancelMatch(@NotNull SpeedrunShowdownRanked plugin, @Nullable UUID disconnectedUUID) {

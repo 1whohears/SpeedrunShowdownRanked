@@ -18,9 +18,10 @@ public class GPServerState {
 
     public final int id;
 
+    private final Map<UUID,Long> vetoLoginTimes = new HashMap<>();
     private final Map<UUID,Long> loginTimes = new HashMap<>();
     private final Map<UUID,Long> disconnectTimes = new HashMap<>();
-    private final Map<UUID,Long> totalDisconnectedTime = new HashMap<>();
+    private final Map<UUID,Long> totalDisconnectedTimes = new HashMap<>();
     private final List<Set<UUID>> vetos = new ArrayList<>();
     private final Set<UUID> readyVotes = new HashSet<>();
     private final Set<Player> rejoinPlayers = new HashSet<>();
@@ -124,7 +125,7 @@ public class GPServerState {
         player.getCurrentServer().ifPresent(server -> server.getServer().sendMessage(infoMsg(
                 player.getUsername()+" is using their Tier "+TIER+" Veto to Reset the Seed!"
         )));
-        loginTimes.clear();
+        vetoLoginTimes.clear();
         readyVotes.clear();
         if (highestTier >= numQueueMembers-1) vetos.get(highestTier).clear();
         plugin.resetGameplaySeed(id, msg -> player.sendMessage(errorMsg(msg)));
@@ -149,7 +150,7 @@ public class GPServerState {
             return false;
         }
         long vetoTime = CONFIG.getLong("veto_time");
-        long loginTime = loginTimes.computeIfAbsent(player.getUniqueId(), uuid -> System.currentTimeMillis());
+        long loginTime = vetoLoginTimes.computeIfAbsent(player.getUniqueId(), uuid -> System.currentTimeMillis());
         long diff = System.currentTimeMillis() - loginTime;
         if (diff > vetoTime * 1000) {
             player.sendMessage(errorMsg("You must Veto the seed with "+vetoTime+" seconds after logging in!" +
@@ -220,11 +221,19 @@ public class GPServerState {
                if (error != null) setOffline();
             });
         }
-        //tickTotalDisconnectTimes(plugin);
+        plugin.proxy.getScheduler().buildTask(plugin, () -> tickTotalDisconnectTimes(plugin)).schedule();
     }
 
     public void voteReady(@NotNull Player player) {
         // TODO be able to vote ready to start the match?
+        boolean added = readyVotes.add(player.getUniqueId());
+        RegisteredServer server = SRSDR.getGameplayServer(getLobbyId());
+        if (server == null) return;
+        if (added) {
+            server.sendMessage(specialMsg(player.getUsername()+" voted to start the match now!"));
+        } else {
+            player.sendMessage(errorMsg("You already voted to start the match!"));
+        }
     }
 
     public void cancelMatch(@NotNull SpeedrunShowdownRanked plugin, @Nullable UUID disconnectedUUID) {
@@ -232,8 +241,17 @@ public class GPServerState {
         if (server == null) return;
         plugin.getInternalApiServer().sendCancelSet(getLobbyId());
         server.sendMessage(infoMsg("The match has been canceled!"));
-        if (disconnectedUUID == null) {
-
+        if (disconnectedUUID != null) {
+            long loginTime = loginTimes.get(disconnectedUUID);
+            long disconnectedTime = disconnectTimes.get(disconnectedUUID);
+            long totalDisconnectedTime = totalDisconnectedTimes.get(disconnectedUUID);
+            long currentTime = System.currentTimeMillis();
+            plugin.logger.warn("MATCH CANCELED: Player with UUID {} was logged off for too long! " +
+                    "Time Since: Login {} Disconnect {} Total Offline Time {}",
+                    disconnectedUUID, (currentTime - loginTime) / 1000,
+                    (currentTime - disconnectedTime) / 1000, totalDisconnectedTime / 1000);
+            server.sendMessage(specialMsg("A player has been logged off for "
+                    + (totalDisconnectedTime / 1000) + " seconds!"));
         }
         resetQueue();
         // TODO cancel the match and reduce the elo of the player that disconnected
@@ -247,18 +265,20 @@ public class GPServerState {
         queueType = QueueType.NONE;
         queueState = QueueState.NONE;
         queueData = new JsonObject();
-        loginTimes.clear();
+        vetoLoginTimes.clear();
         vetos.clear();
         readyVotes.clear();
         rejoinPlayers.clear();
         queuePlayers.clear();
+        loginTimes.clear();
         disconnectTimes.clear();
-        totalDisconnectedTime.clear();
+        totalDisconnectedTimes.clear();
     }
 
     public void onPlayerConnect(@NotNull Player player) {
         SRSDR.logger.info("PLAYER CONNECT {} {}", getLobbyId(), player);
-        loginTimes.putIfAbsent(player.getUniqueId(), System.currentTimeMillis());
+        loginTimes.put(player.getUniqueId(), System.currentTimeMillis());
+        vetoLoginTimes.putIfAbsent(player.getUniqueId(), System.currentTimeMillis());
         checkIn(SRSDR, player);
     }
 
@@ -274,17 +294,20 @@ public class GPServerState {
         long currentTime = System.currentTimeMillis();
         long timeDiff = currentTime - prevTime;
         long cancelMatchTimeout = CONFIG.getInt("disconnect_timeout") * 1000;
-        disconnectTimes.forEach((uuid, disconnectTime) -> {
-            if (!loginTimes.containsKey(uuid)) return;
+        for (Map.Entry<UUID, Long> entry : disconnectTimes.entrySet()) {
+            UUID uuid = entry.getKey();
+            long disconnectTime = entry.getValue();
+            if (!loginTimes.containsKey(uuid)) continue;
             long loginTime = loginTimes.get(uuid);
-            if (disconnectTime <= loginTime) return;
-            if (currentTime > disconnectTime) {
-                totalDisconnectedTime.computeIfAbsent(uuid, id -> timeDiff);
-                totalDisconnectedTime.computeIfPresent(uuid, (id,time) -> time + timeDiff);
-                if (totalDisconnectedTime.get(uuid) > cancelMatchTimeout)
+            if (currentTime > disconnectTime && disconnectTime > loginTime) {
+                totalDisconnectedTimes.computeIfAbsent(uuid, id -> timeDiff);
+                totalDisconnectedTimes.computeIfPresent(uuid, (id, time) -> time + timeDiff);
+                if (totalDisconnectedTimes.get(uuid) > cancelMatchTimeout) {
                     totalDisconnectedTimeExceeded(plugin, uuid);
+                    break;
+                }
             }
-        });
+        }
         prevTime = currentTime;
     }
 
@@ -395,7 +418,7 @@ public class GPServerState {
         QueueState next = readQueueState(queueData.get("queueState").getAsString());
         if (next != queueState) {
             if (next == QueueState.PREGAME) {
-                loginTimes.clear();
+                vetoLoginTimes.clear();
                 sendPlayersToServer(SRSDR);
                 sendMessage(specialMsg("PREGAME has started! All enrolled players must check in and can Veto seeds!"));
                 RegisteredServer server = SRSDR.getGameplayServer(getLobbyId());

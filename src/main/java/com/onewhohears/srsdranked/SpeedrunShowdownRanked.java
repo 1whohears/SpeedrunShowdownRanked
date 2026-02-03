@@ -298,18 +298,21 @@ public class SpeedrunShowdownRanked {
             return;
         }
         if (stateFromList.isResettingSeed()) return;
-        stateFromList.onPlayerDisconnect(this, event.getPlayer());
         proxy.getScheduler().buildTask(this,
-                () -> sendToGameplayServer(event.getPlayer(), stateFromList.getLobbyId()))
-                .schedule();
-        // FIXME not rejoining player after the match starts
+                () -> {
+                    stateFromList.onPlayerDisconnect(this, event.getPlayer());
+                    sendToGameplayServer(event.getPlayer(), stateFromList.getLobbyId());
+                }).schedule();
     }
 
     @Subscribe
     public void onDisconnect(DisconnectEvent event) {
-        GPServerState state = getFromWatchList(event.getPlayer());
-        if (state == null) return;
-        state.onPlayerDisconnect(this, event.getPlayer());
+        proxy.getScheduler().buildTask(this,
+                () -> {
+                    GPServerState state = getFromWatchList(event.getPlayer());
+                    if (state == null) return;
+                    state.onPlayerDisconnect(this, event.getPlayer());
+                }).schedule();
     }
 
     @Nullable

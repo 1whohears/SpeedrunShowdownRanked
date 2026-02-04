@@ -254,7 +254,23 @@ public class GPServerState {
                     + (totalDisconnectedTime / 1000) + " seconds!"));
         }
         resetQueue();
-        // TODO cancel the match and reduce the elo of the player that disconnected
+        if (isSetResolved) {
+            int setId = queueData.get("resolvedSetId").getAsInt();
+            String reqUrl = getRequestURL("/league/set/cancel");
+            reqUrl += "&setId="+setId;
+            if (disconnectedUUID != null) reqUrl += "&penaltyMcUUIDList="+disconnectedUUID;
+            handleResponseAsync(reqUrl, plugin, response -> {
+                if (response.has("error")) {
+                    String error = response.get("error").getAsString();
+                    server.sendMessage(errorMsg(error));
+                    plugin.logger.error(error);
+                    return;
+                }
+                String result = response.get("result").getAsString();
+                server.sendMessage(infoMsg(result));
+                plugin.logger.info(result);
+            });
+        }
     }
 
     public void resetQueue() {

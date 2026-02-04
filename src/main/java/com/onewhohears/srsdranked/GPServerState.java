@@ -253,7 +253,6 @@ public class GPServerState {
             server.sendMessage(specialMsg("A player has been logged off for "
                     + (totalDisconnectedTime / 1000) + " seconds!"));
         }
-        resetQueue();
         if (isSetResolved) {
             int setId = queueData.get("resolvedSetId").getAsInt();
             String reqUrl = getRequestURL("/league/set/cancel");
@@ -271,6 +270,7 @@ public class GPServerState {
                 plugin.logger.info(result);
             });
         }
+        resetQueue();
     }
 
     public void resetQueue() {

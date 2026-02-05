@@ -505,8 +505,8 @@ public class GPServerState {
     public void sendStatus(@NotNull Player player) {
         player.sendMessage(specialMsg("Game Lobby "+getLobbyId()
                 +" | Status "+getStatus().name()
-                +" | Queue State "+getQueueState().name()
-                +" | Queue Type "+getQueueType().name()
+                +" | State "+getQueueState().name()
+                +" | Type "+getQueueType().name()
         ));
     }
 

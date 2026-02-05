@@ -249,6 +249,7 @@ public class SpeedrunShowdownRanked {
         cmdMng.register(cmdMng.metaBuilder("veto").plugin(this).build(), VetoSeed.create(this));
         cmdMng.register(cmdMng.metaBuilder("rejoin").plugin(this).build(), RejoinGame.create(this));
         cmdMng.register(cmdMng.metaBuilder("link_discord").plugin(this).build(), LinkDiscord.create(this));
+        cmdMng.register(cmdMng.metaBuilder("status").plugin(this).build(), LobbyStatus.create(this));
 
         try {
             internalApiServer.start();
@@ -389,5 +390,9 @@ public class SpeedrunShowdownRanked {
         });
 
         return true;
+    }
+
+    public void sendGameplayStatus(@NotNull Player player) {
+        gpServerStates.forEach((id, state) -> state.sendStatus(player));
     }
 }

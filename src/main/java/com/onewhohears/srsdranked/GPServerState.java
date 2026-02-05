@@ -502,6 +502,12 @@ public class GPServerState {
         return queuePlayers.contains(player.getUniqueId().toString());
     }
 
+    public void sendStatus(@NotNull Player player) {
+        player.sendMessage(specialMsg("Game Lobby "+getLobbyId()
+                +" | Status "+getStatus().name()
+                +" | Queue State "+getQueueState().name()));
+    }
+
     public enum QueueState {
         NONE,
         ENROLL,

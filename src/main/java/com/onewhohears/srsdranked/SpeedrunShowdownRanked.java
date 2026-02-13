@@ -256,6 +256,7 @@ public class SpeedrunShowdownRanked {
         cmdMng.register(cmdMng.metaBuilder("check_out_queue").plugin(this).build(), CheckOutQueue.create(this));
         cmdMng.register(cmdMng.metaBuilder("check_out").plugin(this).build(), CheckOutQueue.create2(this));
         cmdMng.register(cmdMng.metaBuilder("veto").plugin(this).build(), VetoSeed.create(this));
+        cmdMng.register(cmdMng.metaBuilder("vote_ready").plugin(this).build(), VoteReady.create(this));
         cmdMng.register(cmdMng.metaBuilder("rejoin").plugin(this).build(), RejoinGame.create(this));
         cmdMng.register(cmdMng.metaBuilder("link_discord").plugin(this).build(), LinkDiscord.create(this));
         cmdMng.register(cmdMng.metaBuilder("status").plugin(this).build(), LobbyStatus.create(this));

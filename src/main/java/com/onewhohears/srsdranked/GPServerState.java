@@ -227,7 +227,7 @@ public class GPServerState {
     }
 
     public boolean voteReady(@NotNull Player player) {
-        if (isPreGame()) {
+        if (!isPreGame()) {
             player.sendMessage(errorMsg("You can only vote ready while in Pre Game Phase!"));
             return false;
         }
@@ -240,7 +240,7 @@ public class GPServerState {
         } else {
             player.sendMessage(errorMsg("You already voted to start the match!"));
         }
-        if (readyVotes.size() >= numQueueMembers) {
+        if (numQueueMembers >= getQueueType().minPlayers && readyVotes.size() >= numQueueMembers) {
             String requestUrl = getRequestURL("/league/queue/action");
             requestUrl += "&action=create_set&queueId="+getQueueId();
             handleResponseAsync(requestUrl, SRSDR, response -> {

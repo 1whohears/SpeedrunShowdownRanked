@@ -83,6 +83,7 @@ public class GPServerState {
             String result = response.get("result").getAsString();
             player.sendMessage(infoMsg("Check Out Queue "+queueId+" Result: "+result));
             plugin.sendToDefaultServer(player);
+            readyVotes.remove(player.getUniqueId());
         });
         return true;
     }
@@ -101,6 +102,7 @@ public class GPServerState {
             player.sendMessage(infoMsg("Leave Queue "+queueId+" Result: "+result));
             plugin.sendToDefaultServer(player);
             queuePlayers.remove(player.getUniqueId().toString());
+            readyVotes.remove(player.getUniqueId());
         });
         return true;
     }
@@ -117,12 +119,12 @@ public class GPServerState {
         }
         int TIER = highestTier+1;
         if (vetos.get(highestTier).size() % (highestTier + 1) != 0) {
-            player.getCurrentServer().ifPresent(server -> server.getServer().sendMessage(infoMsg(
+            player.getCurrentServer().ifPresent(server -> server.getServer().sendMessage(specialMsg(
                     player.getUsername()+" is requesting someone join them in a Tier "+TIER+" Veto!"
             )));
             return;
         }
-        player.getCurrentServer().ifPresent(server -> server.getServer().sendMessage(infoMsg(
+        player.getCurrentServer().ifPresent(server -> server.getServer().sendMessage(specialMsg(
                 player.getUsername()+" is using their Tier "+TIER+" Veto to Reset the Seed!"
         )));
         vetoLoginTimes.clear();
@@ -224,16 +226,35 @@ public class GPServerState {
         plugin.proxy.getScheduler().buildTask(plugin, () -> tickTotalDisconnectTimes(plugin)).schedule();
     }
 
-    public void voteReady(@NotNull Player player) {
-        // TODO be able to vote ready to start the match?
+    public boolean voteReady(@NotNull Player player) {
+        if (isPreGame()) {
+            player.sendMessage(errorMsg("You can only vote ready while in Pre Game Phase!"));
+            return false;
+        }
         boolean added = readyVotes.add(player.getUniqueId());
         RegisteredServer server = SRSDR.getGameplayServer(getLobbyId());
-        if (server == null) return;
+        if (server == null) return false;
         if (added) {
-            server.sendMessage(specialMsg(player.getUsername()+" voted to start the match now!"));
+            server.sendMessage(specialMsg(player.getUsername()+" voted ready to start the match now! "
+                    +readyVotes.size()+"/"+numQueueMembers));
         } else {
             player.sendMessage(errorMsg("You already voted to start the match!"));
         }
+        if (readyVotes.size() >= numQueueMembers) {
+            String requestUrl = getRequestURL("/league/queue/action");
+            requestUrl += "&action=create_set&queueId="+getQueueId();
+            handleResponseAsync(requestUrl, SRSDR, response -> {
+                if (response.has("error")) {
+                    player.sendMessage(errorMsg(response.get("error").getAsString()));
+                    return;
+                }
+                JsonObject queue = response.getAsJsonObject("queue");
+                setQueueData(queue);
+                String result = response.get("result").getAsString();
+                server.sendMessage(infoMsg("Create Set Result: "+result));
+            });
+        }
+        return true;
     }
 
     public void cancelMatch(@NotNull SpeedrunShowdownRanked plugin, @Nullable UUID disconnectedUUID) {

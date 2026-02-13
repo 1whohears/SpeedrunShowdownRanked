@@ -60,6 +60,15 @@ public class SpeedrunShowdownRanked {
         return state.vetoSeed(this, player);
     }
 
+    public boolean voteReady(@NotNull Player player, int gameId) {
+        if (!gpServerStates.containsKey(gameId)) {
+            player.sendMessage(errorMsg("Could not vote ready gameplay server "+gameId+" because that is an invalid id."));
+            return false;
+        }
+        GPServerState state = gpServerStates.get(gameId);
+        return state.voteReady(player);
+    }
+
     public boolean resetGameplaySeed(int id, Consumer<String> debug) {
         if (!gpServerStates.containsKey(id)) {
             debug.accept("Could not reset gameplay server "+id+" because that is an invalid id.");

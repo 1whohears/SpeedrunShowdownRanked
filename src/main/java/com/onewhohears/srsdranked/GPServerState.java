@@ -22,6 +22,7 @@ public class GPServerState {
     private final Map<UUID,Long> loginTimes = new HashMap<>();
     private final Map<UUID,Long> disconnectTimes = new HashMap<>();
     private final Map<UUID,Long> totalDisconnectedTimes = new HashMap<>();
+    private final Map<Long,UUID> discordToMcIds = new HashMap<>();
     private final List<Set<UUID>> vetos = new ArrayList<>();
     private final Set<UUID> readyVotes = new HashSet<>();
     private final Set<Player> rejoinPlayers = new HashSet<>();
@@ -58,6 +59,8 @@ public class GPServerState {
                 player.sendMessage(errorMsg(response.get("error").getAsString()));
                 return;
             }
+            long userId = response.get("userId").getAsLong();
+            discordToMcIds.put(userId, player.getUniqueId());
             setQueueData(response.getAsJsonObject("queue"));
             String result = response.get("result").getAsString();
             player.sendMessage(infoMsg("Check In Queue "+queueId+" Result: "+result));
@@ -310,6 +313,7 @@ public class GPServerState {
         loginTimes.clear();
         disconnectTimes.clear();
         totalDisconnectedTimes.clear();
+        discordToMcIds.clear();
     }
 
     public void onPlayerConnect(@NotNull Player player) {
@@ -470,9 +474,22 @@ public class GPServerState {
             }
         }
         queueState = next;
+        JsonArray members = queueData.get("members").getAsJsonArray();
+        numQueueMembers = members.size();
+        boolean wasSetResolved = isSetResolved;
         isSetResolved = queueData.get("resolved").getAsBoolean();
+        if (!wasSetResolved && isSetResolved) {
+            for (int i = 0; i < members.size(); ++i) {
+                JsonObject member = members.get(i).getAsJsonObject();
+                String queueStatus = member.get("queueStatus").getAsString();
+                if (queueStatus.equals("CHECKED_IN")) continue;
+                long id = Long.parseLong(member.get("id").getAsString());
+                UUID uuid = discordToMcIds.get(id);
+                if (uuid == null) continue;
+                queuePlayers.remove(uuid.toString());
+            }
+        }
         if (queueState == QueueState.CLOSED && !isSetResolved) resetQueue();
-        numQueueMembers = queueData.get("members").getAsJsonArray().size();
     }
 
     public void sendMessage(Component msg) {

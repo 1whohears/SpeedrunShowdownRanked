@@ -25,6 +25,7 @@ public class GPServerState {
     private final Map<Long,UUID> discordToMcIds = new HashMap<>();
     private final List<Set<UUID>> vetos = new ArrayList<>();
     private final Set<UUID> readyVotes = new HashSet<>();
+    private final Set<UUID> checkedInPlayers = new HashSet<>();
     private final Set<Player> rejoinPlayers = new HashSet<>();
     private final Set<String> queuePlayers = new HashSet<>();
 
@@ -234,16 +235,21 @@ public class GPServerState {
             player.sendMessage(errorMsg("You can only vote ready while in Pre Game Phase!"));
             return false;
         }
+        if (!checkedInPlayers.contains(player.getUniqueId())) {
+            player.sendMessage(errorMsg("You cannot vote ready because you are a sub!"));
+            return false;
+        }
         boolean added = readyVotes.add(player.getUniqueId());
         RegisteredServer server = SRSDR.getGameplayServer(getLobbyId());
         if (server == null) return false;
+        int numCheckedIn = checkedInPlayers.size();
         if (added) {
             server.sendMessage(specialMsg(player.getUsername()+" voted ready to start the match now! "
-                    +readyVotes.size()+"/"+numQueueMembers));
+                    +readyVotes.size()+"/"+numCheckedIn));
         } else {
             player.sendMessage(errorMsg("You already voted to start the match!"));
         }
-        if (numQueueMembers >= getQueueType().minPlayers && readyVotes.size() >= numQueueMembers) {
+        if (numCheckedIn >= getQueueType().minPlayers && readyVotes.size() >= numCheckedIn) {
             String requestUrl = getRequestURL("/league/queue/action");
             requestUrl += "&action=create_set&queueId="+getQueueId();
             handleResponseAsync(requestUrl, SRSDR, response -> {
@@ -314,6 +320,7 @@ public class GPServerState {
         disconnectTimes.clear();
         totalDisconnectedTimes.clear();
         discordToMcIds.clear();
+        checkedInPlayers.clear();
     }
 
     public void onPlayerConnect(@NotNull Player player) {
@@ -476,18 +483,19 @@ public class GPServerState {
         queueState = next;
         JsonArray members = queueData.get("members").getAsJsonArray();
         numQueueMembers = members.size();
+        checkedInPlayers.clear();
+        for (int i = 0; i < members.size(); ++i) {
+            JsonObject member = members.get(i).getAsJsonObject();
+            String queueStatus = member.get("queueStatus").getAsString();
+            long id = Long.parseLong(member.get("id").getAsString());
+            if (queueStatus.equals("CHECKED_IN")) {
+                checkedInPlayers.add(discordToMcIds.get(id));
+            }
+        }
         boolean wasSetResolved = isSetResolved;
         isSetResolved = queueData.get("resolved").getAsBoolean();
         if (!wasSetResolved && isSetResolved) {
-            for (int i = 0; i < members.size(); ++i) {
-                JsonObject member = members.get(i).getAsJsonObject();
-                String queueStatus = member.get("queueStatus").getAsString();
-                if (queueStatus.equals("CHECKED_IN")) continue;
-                long id = Long.parseLong(member.get("id").getAsString());
-                UUID uuid = discordToMcIds.get(id);
-                if (uuid == null) continue;
-                queuePlayers.remove(uuid.toString());
-            }
+            queuePlayers.removeIf(uuidStr -> !checkedInPlayers.contains(UUID.fromString(uuidStr)));
         }
         if (queueState == QueueState.CLOSED && !isSetResolved) resetQueue();
     }

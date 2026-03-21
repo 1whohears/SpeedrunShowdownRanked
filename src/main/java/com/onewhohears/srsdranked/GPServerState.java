@@ -23,7 +23,7 @@ public class GPServerState {
     private final Map<UUID,Long> disconnectTimes = new HashMap<>();
     private final Map<UUID,Long> totalDisconnectedTimes = new HashMap<>();
     private final Map<Long,UUID> discordToMcIds = new HashMap<>();
-    private final List<Set<UUID>> vetos = new ArrayList<>();
+    private final List<List<UUID>> vetos = new ArrayList<>();
     private final Set<UUID> readyVotes = new HashSet<>();
     private final Set<UUID> checkedInPlayers = new HashSet<>();
     private final Set<Player> rejoinPlayers = new HashSet<>();
@@ -133,13 +133,20 @@ public class GPServerState {
         )));
         vetoLoginTimes.clear();
         readyVotes.clear();
+        for (int i = 0; i < vetos.size(); ++i) {
+            while (vetos.get(i).size() % (i + 1) != 0) {
+                vetos.get(i).remove(vetos.get(i).size()-1);
+            }
+        }
         if (highestTier >= numQueueMembers-1) vetos.get(highestTier).clear();
         plugin.resetGameplaySeed(id, msg -> player.sendMessage(errorMsg(msg)));
     }
 
     private boolean registerVeto(@NotNull Player player, int tier) {
-        if (vetos.size() < tier) vetos.add(new HashSet<>());
-        return vetos.get(tier-1).add(player.getUniqueId());
+        if (vetos.size() < tier) vetos.add(new ArrayList<>());
+        if (vetos.get(tier-1).contains(player.getUniqueId())) return false;
+        vetos.get(tier-1).add(player.getUniqueId());
+        return true;
     }
 
     private int findHighestTier(@NotNull Player player) {

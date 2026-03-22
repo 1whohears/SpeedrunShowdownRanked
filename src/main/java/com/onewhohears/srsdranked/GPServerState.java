@@ -115,7 +115,10 @@ public class GPServerState {
         int highestTier = findHighestTier(player);
         if (highestTier >= numQueueMembers-1) {
             highestTier = numQueueMembers-1;
-            registerVeto(player, highestTier+1);
+            if (!registerVeto(player, highestTier+1)) {
+                player.sendMessage(errorMsg("You already requested the highest possible tier veto."));
+                return;
+            }
         } else {
             while (!registerVeto(player, highestTier+1)) {
                 ++highestTier;

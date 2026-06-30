@@ -521,7 +521,7 @@ public class GPServerState {
         if (!wasSetResolved && isSetResolved) {
             queuePlayers.removeIf(uuidStr -> !checkedInPlayers.contains(UUID.fromString(uuidStr)));
         }
-        if (queueState == QueueState.CLOSED && !isSetResolved && getQueueType().isRanked()) resetQueue();
+        if (queueState == QueueState.CLOSED && !isSetResolved) resetQueue();
     }
 
     public void sendMessage(Component msg) {

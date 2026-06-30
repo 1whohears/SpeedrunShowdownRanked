@@ -15,8 +15,12 @@ public enum QueueType {
         this.allowLargerTeams = allowLargerTeams;
         this.allowOddNum = allowOddNum;
         this.customTeams = customTeams;
-        this.createQueueParams = "&minPlayers="+minPlayers+"&teamSize="+teamSize
+        String params = "&minPlayers="+minPlayers+"&teamSize="+teamSize
                 +"&allowLargerTeams="+allowLargerTeams+"&allowOddNum="+allowOddNum;
+        if (this.customTeams) {
+            params += "&ifEnoughPlayersAutoStart=false&subRequestTime=0&timeoutTime=600";
+        }
+        this.createQueueParams = params;
     }
     public String getCreateQueueParams() {
         return createQueueParams;

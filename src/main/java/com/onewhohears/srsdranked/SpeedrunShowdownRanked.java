@@ -96,6 +96,27 @@ public class SpeedrunShowdownRanked {
         return true;
     }
 
+    public boolean cancelMatch(int id, Consumer<String > debug) {
+        if (!gpServerStates.containsKey(id)) {
+            debug.accept("Could not reset gameplay server "+id+" because that is an invalid id.");
+            return false;
+        }
+        RegisteredServer gameServer = getGameplayServer(id);
+        if (gameServer == null) {
+            debug.accept("Could not reset gameplay server "+id+" because it does not exist.");
+            return false;
+        }
+        RegisteredServer lobbyServer = getLobbyServer();
+        if (lobbyServer == null) {
+            debug.accept("Could not send players to the lobby server because it does not exist.");
+            return false;
+        }
+        gameServer.sendMessage(infoMsg("This match has been canceled by an operator."));
+        GPServerState state = gpServerStates.get(id);
+        state.cancelMatch(this, null);
+        return true;
+    }
+
     public boolean resetQueue(int id, Consumer<String> debug) {
         if (!gpServerStates.containsKey(id)) {
             debug.accept("Could not reset gameplay server "+id+" because that is an invalid id.");
@@ -260,6 +281,7 @@ public class SpeedrunShowdownRanked {
         cmdMng.register(cmdMng.metaBuilder("rejoin").plugin(this).build(), RejoinGame.create(this));
         cmdMng.register(cmdMng.metaBuilder("link_discord").plugin(this).build(), LinkDiscord.create(this));
         cmdMng.register(cmdMng.metaBuilder("status").plugin(this).build(), LobbyStatus.create(this));
+        cmdMng.register(cmdMng.metaBuilder("cancel_match").plugin(this).build(), CancelMatch.create(this));
 
         try {
             internalApiServer.start();

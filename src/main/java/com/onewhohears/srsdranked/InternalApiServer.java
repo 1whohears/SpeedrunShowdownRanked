@@ -48,6 +48,13 @@ public class InternalApiServer {
                 response -> plugin.logger.info("Sent Cancel Set to Game Server {}", id));
     }
 
+    public void sendStartCasualMatch(int id) {
+        String url = getRequestURL("start_casual_match", id);
+        String jsonBody = "{\"do_it\":\"now\"}";
+        handlePostAsync(url, jsonBody,
+                response -> plugin.logger.info("Sent Start Casual Match to Game Server {}", id));
+    }
+
     public InternalApiServer(SpeedrunShowdownRanked plugin) {
         this.plugin = plugin;
     }

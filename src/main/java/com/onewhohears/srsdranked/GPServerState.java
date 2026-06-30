@@ -261,17 +261,31 @@ public class GPServerState {
         }
         if (numCheckedIn >= getQueueType().minPlayers && readyVotes.size() >= numCheckedIn) {
             String requestUrl = getRequestURL("/league/queue/action");
-            requestUrl += "&action=create_set&queueId="+getQueueId();
-            handleResponseAsync(requestUrl, SRSDR, response -> {
-                if (response.has("error")) {
-                    player.sendMessage(errorMsg(response.get("error").getAsString()));
-                    return;
-                }
-                JsonObject queue = response.getAsJsonObject("queue");
-                setQueueData(queue);
-                String result = response.get("result").getAsString();
-                server.sendMessage(infoMsg("Create Set Result: "+result));
-            });
+            if (getQueueType().isRanked()) {
+                requestUrl += "&action=create_set&queueId=" + getQueueId();
+                handleResponseAsync(requestUrl, SRSDR, response -> {
+                    if (response.has("error")) {
+                        player.sendMessage(errorMsg(response.get("error").getAsString()));
+                        return;
+                    }
+                    JsonObject queue = response.getAsJsonObject("queue");
+                    setQueueData(queue);
+                    String result = response.get("result").getAsString();
+                    server.sendMessage(infoMsg("Create Set Result: " + result));
+                });
+            } else {
+                requestUrl += "&action=close&queueId=" + getQueueId();
+                handleResponseAsync(requestUrl, SRSDR, response -> {
+                    if (response.has("error")) {
+                        player.sendMessage(errorMsg(response.get("error").getAsString()));
+                        return;
+                    }
+                    JsonObject queue = response.getAsJsonObject("queue");
+                    setQueueData(queue);
+                    server.sendMessage(infoMsg("Queue Closed. Starting a Casual match!"));
+                    SRSDR.getInternalApiServer().sendStartCasualMatch(getLobbyId());
+                });
+            }
         }
         return true;
     }
@@ -507,7 +521,7 @@ public class GPServerState {
         if (!wasSetResolved && isSetResolved) {
             queuePlayers.removeIf(uuidStr -> !checkedInPlayers.contains(UUID.fromString(uuidStr)));
         }
-        if (queueState == QueueState.CLOSED && !isSetResolved) resetQueue();
+        if (queueState == QueueState.CLOSED && !isSetResolved && getQueueType().isRanked()) resetQueue();
     }
 
     public void sendMessage(Component msg) {

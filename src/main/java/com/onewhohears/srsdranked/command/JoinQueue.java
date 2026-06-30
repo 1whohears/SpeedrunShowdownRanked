@@ -44,6 +44,16 @@ public class JoinQueue {
                             return Command.SINGLE_SUCCESS;
                         })
                 )
+                .then(BrigadierCommand.literalArgumentBuilder("casual")
+                        .executes(context -> {
+                            if (!(context.getSource() instanceof Player player)) {
+                                context.getSource().sendMessage(errorMsg("User of this command must be a player!"));
+                                return 0;
+                            }
+                            plugin.joinCreateQueue(player, QueueType.CASUAL);
+                            return Command.SINGLE_SUCCESS;
+                        })
+                )
                 .build();
         return new BrigadierCommand(main);
     }
